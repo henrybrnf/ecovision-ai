@@ -282,6 +282,15 @@ def render_ecosystem_canvas(width=350, height=250):
         cv2.line(canvas, (x, 0), (x, height), (50, 50, 60), 1)
     for y in range(0, height, 50):
         cv2.line(canvas, (0, y), (width, y), (50, 50, 60), 1)
+
+    # --- DIBUJAR COMIDA ---
+    if st.session_state.simulation:
+        for food_pos in st.session_state.simulation.food_items:
+            fx, fy = int(food_pos[0]), int(food_pos[1])
+            # Dibujar un pequeño punto verde brillante
+            cv2.circle(canvas, (fx, fy), 3, (0, 255, 0), -1)
+            # Efecto de brillo
+            cv2.circle(canvas, (fx, fy), 6, (0, 255, 0), 1)
     
     # Dibujar detecciones como puntos de interés (usando posiciones mapeadas)
     for pos in st.session_state.mapped_detections:
@@ -292,14 +301,24 @@ def render_ecosystem_canvas(width=350, height=250):
         cv2.circle(canvas, (x, y), 8, (0, 0, 255), -1)
         cv2.circle(canvas, (x, y), 3, (255, 255, 255), -1)
     
-    # Dibujar agentes
+    # --- DIBUJAR AGENTES ---
     if st.session_state.simulation and st.session_state.simulation.agents:
         for agent in st.session_state.simulation.agents:
             ax = int(agent.position[0])
             ay = int(agent.position[1])
+            
+            # Limitar al canvas
             ax = max(5, min(ax, width-5))
             ay = max(5, min(ay, height-5))
             
+            if not agent.alive:
+                # Dibujar "X" gris para agentes muertos
+                size = 4
+                cv2.line(canvas, (ax-size, ay-size), (ax+size, ay+size), (100, 100, 100), 2)
+                cv2.line(canvas, (ax-size, ay+size), (ax+size, ay-size), (100, 100, 100), 2)
+                continue
+
+            # --- AGENTE VIVO ---
             # Cuerpo del agente
             cv2.circle(canvas, (ax, ay), 6, agent.color, -1)
             
@@ -307,7 +326,22 @@ def render_ecosystem_canvas(width=350, height=250):
             dx = int(np.cos(agent.angle) * 10)
             dy = int(np.sin(agent.angle) * 10)
             cv2.line(canvas, (ax, ay), (ax+dx, ay+dy), (255, 255, 255), 2)
-    
+
+            # Barra de Energía
+            energy_pct = max(0.0, min(1.0, agent.energy / agent.config.max_energy))
+            bar_color = (0, 255, 0) if energy_pct > 0.5 else (0, 0, 255) # Verde o Rojo
+            
+            bar_len = 12
+            bar_start_x = ax - 6
+            bar_end_x = int(bar_start_x + (bar_len * energy_pct))
+            bar_y = ay - 10
+            
+            # Fondo barra
+            cv2.line(canvas, (bar_start_x, bar_y), (bar_start_x + bar_len, bar_y), (50, 50, 50), 2)
+            # Energía actual
+            if bar_end_x > bar_start_x:
+                cv2.line(canvas, (bar_start_x, bar_y), (bar_end_x, bar_y), bar_color, 2)
+            
     return canvas
 
 
@@ -402,11 +436,13 @@ def main():
     
     with col_stats:
         st.markdown('<div class="panel"><div class="panel-title">📊 Estadísticas</div>', unsafe_allow_html=True)
-        stats_cols = st.columns(4)
+        stats_cols = st.columns(6) # Aumentar a 6 columnas
         stat_frames = stats_cols[0].empty()
         stat_persons = stats_cols[1].empty()
-        stat_gen = stats_cols[2].empty()
-        stat_fitness = stats_cols[3].empty()
+        stat_alive = stats_cols[2].empty() # Nuevo
+        stat_food = stats_cols[3].empty()  # Nuevo
+        stat_gen = stats_cols[4].empty()
+        stat_fitness = stats_cols[5].empty()
         
         chart_placeholder = st.empty()
         st.markdown('</div>', unsafe_allow_html=True)
@@ -454,9 +490,16 @@ def main():
             
             # Actualizar estadísticas
             stat_frames.metric("🖼️ Frames", st.session_state.frame_count)
-            stat_persons.metric("👥 Total Det.", st.session_state.total_detections)
-            stat_gen.metric("🧬 Generación", stats.get('generation', 0))
-            stat_fitness.metric("💪 Mejor Fitness", f"{stats.get('best_fitness', 0):.1f}")
+            stat_persons.metric("👥 Pers.", st.session_state.total_detections)
+            
+            alive_count = len([a for a in st.session_state.simulation.agents if a.alive])
+            food_count = len(st.session_state.simulation.food_items)
+            
+            stat_alive.metric("🟢 Vivos", alive_count)
+            stat_food.metric("🍎 Comida", food_count)
+            
+            stat_gen.metric("🧬 Gen", stats.get('generation', 0))
+            stat_fitness.metric("💪 Fit", f"{stats.get('best_fitness', 0):.1f}")
             
             # Gráfico de historial
             if len(st.session_state.detection_history) > 2:
@@ -511,9 +554,11 @@ def main():
         """, unsafe_allow_html=True)
         
         stat_frames.metric("🖼️ Frames", 0)
-        stat_persons.metric("👥 Total Det.", 0)
-        stat_gen.metric("🧬 Generación", 1)
-        stat_fitness.metric("💪 Mejor Fitness", "0.0")
+        stat_persons.metric("👥 Pers.", 0)
+        stat_alive.metric("🟢 Vivos", 0)
+        stat_food.metric("🍎 Comida", 0)
+        stat_gen.metric("🧬 Gen", 1)
+        stat_fitness.metric("💪 Fit", "0.0")
 
 
 if __name__ == "__main__":
