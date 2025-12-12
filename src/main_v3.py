@@ -150,8 +150,11 @@ class EcoVisionV3:
                 # Usar copia del frame para evitar race conditions
                 # Nota: YOLOv8 ya redimensiona internamente
                 frame_copy = frame.copy()
-                # Configuración BALANCEADA: 640px (Rápido) + IoU 0.5
+                # Configuración BALANCEADA: 640px (Rápido) + IoU 0.5 + Confianza 0.5
+                # Aumentamos confianza para evitar detectar objetos que no son personas
                 detections = self.detector.detect(frame_copy, imgsz=640, iou=0.5)
+                # Filtrar explícitamente clase 0 (person)
+                detections = [d for d in detections if d.class_id == 0 and d.confidence > 0.5]
                 self.latest_detections = detections
                 self.new_detections = True
             except Exception as e:
@@ -208,6 +211,23 @@ class EcoVisionV3:
                         
                         motion_detections = []
                         for m in motion_regions:
+                            # --- FILTRO GEOMÉTRICO (Rechazar objetos no humanos) ---
+                            w = m.bbox[2] - m.bbox[0]
+                            h = m.bbox[3] - m.bbox[1]
+                            area = w * h
+                            if w == 0: continue
+                            aspect_ratio = h / w
+                            
+                            # Criterios:
+                            # 1. Área mínima (evitar ruido digital/hojas) y máxima (evitar sombras gigantes)
+                            if area < 600 or area > 30000:
+                                continue
+                                
+                            # 2. Aspect Ratio (Personas suelen ser más altas que anchas o cuadradas)
+                            # Rechazar objetos muy horizontales (sombras alargadas, vehículos)
+                            if aspect_ratio < 0.6: 
+                                continue
+
                             motion_detections.append(Detection(
                                 class_id=99,
                                 class_name="pattern",
@@ -261,9 +281,9 @@ class EcoVisionV3:
                         else:
                             avg_speed = 0.0
                         
-                        # Normalizar velocidad (0-30 px/frame -> 0.0-1.0)
-                        # Aumentado denominador a 30.0 para reducir sensibilidad
-                        norm_speed = min(avg_speed / 25.0, 1.0)
+                        # Normalizar velocidad (0-45 px/frame -> 0.0-1.0)
+                        # Aumentado denominador a 45.0 para reducir sensibilidad drásticamente
+                        norm_speed = min(avg_speed / 45.0, 1.0)
                         
                         result = self.alert_system.evaluate(
                             person_count=n,

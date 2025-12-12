@@ -13,6 +13,8 @@ class TrackedObject:
     last_frame: int = 0 # Frame donde fue detectado
     history: List[Tuple[int, int]] = None
     frames_missed: int = 0
+    frames_missed: int = 0
+    running_counter: int = 0 # Contador de frames corriendo
     is_running: bool = False
     class_id: int = 0
     
@@ -26,7 +28,7 @@ class SimpleTracker:
         self.objects: Dict[int, TrackedObject] = {}
         self.max_dist = max_dist
         self.max_missed = max_missed
-        self.speed_threshold = 12.0 # Aumentado a 12.0 para evitar que caminata rápida sea "Running"
+        self.speed_threshold = 20.0 # Aumentado drásticamente a 20.0 para SOLO detectar carreras reales
 
     def update(self, detections, frame_count=0) -> List[TrackedObject]:
         # detections: lista de objetos Detection(bbox, confidence, class_id, center)
@@ -140,8 +142,15 @@ class SimpleTracker:
         if len(obj.history) > 20:
             obj.history.pop(0)
             
-        # Determinar si corre
-        obj.is_running = obj.velocity > self.speed_threshold
+        # Determinar si corre (Persistencia temporal estricta)
+        # Ignorar saltos imposibles (> 60px/frame es teletransportación/error)
+        if obj.velocity > self.speed_threshold and obj.velocity < 60.0:
+            obj.running_counter += 1
+        else:
+            obj.running_counter = max(0, obj.running_counter - 2)
+            
+        # Requiere ~0.25s (7 frames) de carrera sostenida
+        obj.is_running = obj.running_counter > 7
 
     def get_predicted_objects(self, target_frame) -> List[TrackedObject]:
         predicted = []

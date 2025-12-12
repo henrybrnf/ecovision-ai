@@ -118,16 +118,20 @@ class AlertSystem:
     def _create_membership_functions(self):
         """Crea las funciones de membresía para cada variable."""
         
-        # Funciones de membresía para CANTIDAD DE PERSONAS
-        # Pocas: 0-5, Moderadas: 3-12, Muchas: 10+
+        # Funciones de membresía para CANTIDAD DE PERSONAS (Dinámicas basadas en max_persons)
+        # Pocas: 0 - 30%
+        # Moderadas: 20% - 70%
+        # Muchas: 60% - 100%
+        p_max = self.max_persons
+        
         self.person_count['pocas'] = fuzz.trapmf(
-            self.person_count.universe, [0, 0, 3, 6]
+            self.person_count.universe, [0, 0, p_max * 0.20, p_max * 0.40]
         )
         self.person_count['moderadas'] = fuzz.trimf(
-            self.person_count.universe, [4, 8, 12]
+            self.person_count.universe, [p_max * 0.25, p_max * 0.50, p_max * 0.75]
         )
         self.person_count['muchas'] = fuzz.trapmf(
-            self.person_count.universe, [10, 14, self.max_persons, self.max_persons]
+            self.person_count.universe, [p_max * 0.60, p_max * 0.80, p_max, p_max]
         )
         
         # Funciones de membresía para VELOCIDAD DE MOVIMIENTO
