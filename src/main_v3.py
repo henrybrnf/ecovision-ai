@@ -84,7 +84,7 @@ class EcoVisionV3:
         
         # Sistema difuso
         print("  [3/4] Sistema de alertas...")
-        self.alert_system = AlertSystem(max_persons=15)
+        self.alert_system = AlertSystem(max_persons=40)
         
         # Ecosistema
         print("  [4/4] Ecosistema evolutivo...")
@@ -250,13 +250,20 @@ class EcoVisionV3:
                         # Evaluar alerta
                         n = len(current_detections)
                         
-                        # Calcular velocidad máxima real (pixels/frame)
-                        max_speed = 0.0
+                        # Calcular velocidad representativa del grupo
+                        # Usamos el PROMEDIO de las velocidades más altas (Top 50%) para evitar dilución
+                        # pero también evitar que un solo outlier dispare la alerta.
                         if current_detections:
-                            max_speed = max(obj.velocity for obj in current_detections)
+                            velocities = sorted([obj.velocity for obj in current_detections], reverse=True)
+                            # Tomar el top 50% de velocidades para el promedio
+                            top_n = max(1, len(velocities) // 2)
+                            avg_speed = sum(velocities[:top_n]) / top_n
+                        else:
+                            avg_speed = 0.0
                         
                         # Normalizar velocidad (0-30 px/frame -> 0.0-1.0)
-                        norm_speed = min(max_speed / 20.0, 1.0)
+                        # Aumentado denominador a 30.0 para reducir sensibilidad
+                        norm_speed = min(avg_speed / 25.0, 1.0)
                         
                         result = self.alert_system.evaluate(
                             person_count=n,

@@ -297,16 +297,19 @@ class AlertSystem:
     
     def _categorize_alert(self, alert_value: float) -> str:
         """
-        Categoriza el valor de alerta en 3 niveles (semáforo estándar).
+        Categoriza el valor de alerta en 4 niveles (semáforo expandido).
         
         - VERDE (normal): < 30% 
-        - AMARILLO (precaución): 30-70%
-        - ROJO (emergencia): > 70%
+        - AMARILLO (precaución): 30-55%
+        - NARANJA (alerta): 55-80%
+        - ROJO (emergencia): > 80%
         """
         if alert_value < 0.30:
             return "normal"
-        elif alert_value < 0.70:
+        elif alert_value < 0.55:
             return "precaución"
+        elif alert_value < 0.80:
+            return "alerta"
         else:
             return "emergencia"
     

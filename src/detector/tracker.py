@@ -26,7 +26,7 @@ class SimpleTracker:
         self.objects: Dict[int, TrackedObject] = {}
         self.max_dist = max_dist
         self.max_missed = max_missed
-        self.speed_threshold = 8.0 # Reducido para ser más sensible al trote/carrera
+        self.speed_threshold = 12.0 # Aumentado a 12.0 para evitar que caminata rápida sea "Running"
 
     def update(self, detections, frame_count=0) -> List[TrackedObject]:
         # detections: lista de objetos Detection(bbox, confidence, class_id, center)
@@ -120,13 +120,14 @@ class SimpleTracker:
         # Calcular magnitud
         dist = np.sqrt(dx*dx + dy*dy)
         
-        # EMA para magnitud
-        obj.velocity = 0.7 * dist + 0.3 * obj.velocity
+        # EMA para magnitud (Suavizado más agresivo para evitar picos de ruido)
+        # alpha = 0.3 (antes 0.7) da más peso a la historia
+        obj.velocity = 0.3 * dist + 0.7 * obj.velocity
         
         # EMA para vector
         old_vx, old_vy = obj.velocity_vector
-        new_vx = 0.7 * dx + 0.3 * old_vx
-        new_vy = 0.7 * dy + 0.3 * old_vy
+        new_vx = 0.3 * dx + 0.7 * old_vx
+        new_vy = 0.3 * dy + 0.7 * old_vy
         obj.velocity_vector = (new_vx, new_vy)
         
         # Actualizar estado

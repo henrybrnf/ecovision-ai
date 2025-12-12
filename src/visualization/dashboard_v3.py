@@ -53,12 +53,15 @@ class DashboardV3:
     ACCENT = (100, 130, 255)
     
     # Colores de alerta (semáforo estándar: 3 colores)
-    # ROJO = Emergencia (>70% alerta)
-    # AMARILLO = Precaución (30-70% alerta)  
+    # Colores de alerta (semáforo expandido: 4 colores)
+    # ROJO = Emergencia (>80% alerta)
+    # NARANJA = Alerta (55-80% alerta)
+    # AMARILLO = Precaución (30-55% alerta)  
     # VERDE = Normal (<30% alerta)
     ALERT_COLORS = {
         'normal': (0, 200, 80),         # Verde
         'precaución': (255, 200, 0),    # Amarillo
+        'alerta': (255, 100, 0),        # Naranja
         'emergencia': (255, 50, 50),    # Rojo
     }
     
@@ -504,30 +507,35 @@ class DashboardV3:
         alert_color = self.ALERT_COLORS.get(self.alert_category, (100, 100, 100))
         
         # Calcular tamaños relativos al panel
-        sem_radius = min(15, content.height // 10)
+        sem_radius = min(15, content.height // 12)
         sem_x = content.x + 35
         sem_y = content.y + 5
         
-        # Fondo del semáforo (compacto)
-        sem_h = sem_radius * 7
+        # Fondo del semáforo (compacto - 4 luces)
+        sem_h = sem_radius * 9 + 5
         sem_bg = pygame.Rect(sem_x - sem_radius - 5, sem_y, sem_radius * 2 + 10, sem_h)
         pygame.draw.rect(self.screen, (25, 25, 30), sem_bg, border_radius=6)
         pygame.draw.rect(self.screen, (60, 60, 70), sem_bg, width=1, border_radius=6)
         
-        # 3 luces
-        luz_spacing = sem_h // 4
+        # 4 luces
+        luz_spacing = sem_h // 5
         luz_rojo_y = sem_y + luz_spacing
-        luz_amarillo_y = sem_y + luz_spacing * 2
-        luz_verde_y = sem_y + luz_spacing * 3
+        luz_naranja_y = sem_y + luz_spacing * 2
+        luz_amarillo_y = sem_y + luz_spacing * 3
+        luz_verde_y = sem_y + luz_spacing * 4
         
         # Estados
         luz_rojo_on = self.alert_category == 'emergencia'
+        luz_naranja_on = self.alert_category == 'alerta'
         luz_amarillo_on = self.alert_category == 'precaución'
         luz_verde_on = self.alert_category == 'normal'
         
         # Dibujar luces
         rojo = self.ALERT_COLORS['emergencia'] if luz_rojo_on else (50, 15, 15)
         pygame.draw.circle(self.screen, rojo, (sem_x, luz_rojo_y), sem_radius)
+        
+        naranja = self.ALERT_COLORS['alerta'] if luz_naranja_on else (60, 30, 10)
+        pygame.draw.circle(self.screen, naranja, (sem_x, luz_naranja_y), sem_radius)
         
         amarillo = self.ALERT_COLORS['precaución'] if luz_amarillo_on else (50, 40, 10)
         pygame.draw.circle(self.screen, amarillo, (sem_x, luz_amarillo_y), sem_radius)
@@ -537,7 +545,7 @@ class DashboardV3:
         
         # Info a la derecha del semáforo
         info_x = sem_x + 45
-        info_y = sem_y + 5
+        info_y = sem_y + 15
         
         # Porcentaje
         pct_text = f"{self.alert_level:.0%}"
@@ -545,7 +553,12 @@ class DashboardV3:
         self.screen.blit(pct_surf, (info_x, info_y))
         
         # Categoría
-        cat_names = {'normal': 'NORMAL', 'precaución': 'PRECAUCIÓN', 'emergencia': 'EMERGENCIA'}
+        cat_names = {
+            'normal': 'NORMAL',
+            'precaución': 'PRECAUCIÓN',
+            'alerta': 'ALERTA',
+            'emergencia': 'EMERGENCIA'
+        }
         cat_text = cat_names.get(self.alert_category, 'NORMAL')
         cat_surf = self.fonts['small'].render(cat_text, True, alert_color)
         self.screen.blit(cat_surf, (info_x, info_y + 25))
@@ -553,8 +566,9 @@ class DashboardV3:
         # Descripción
         descriptions = {
             'normal': 'Tranquilo',
-            'precaución': 'Vigilar',
-            'emergencia': '¡Acción!'
+            'precaución': 'Atención',
+            'alerta': 'Riesgo alto',
+            'emergencia': '¡ACCIÓN!'
         }
         desc = descriptions.get(self.alert_category, '')
         desc_surf = self.fonts['small'].render(desc, True, self.TEXT_LIGHT)
@@ -568,8 +582,9 @@ class DashboardV3:
         # Leyenda compacta
         ley_y = sep_y + 8
         leyenda = [
-            ("🔴 >70%", "Emergencia"),
-            ("🟡 30-70%", "Precaución"),
+            ("🔴 >80%", "Emergencia"),
+            ("🟠 55-80%", "Alerta"),
+            ("🟡 30-55%", "Precaución"),
             ("🟢 <30%", "Normal"),
         ]
         
@@ -642,6 +657,14 @@ class DashboardV3:
                 "• Se recomienda monitorización"
             ]
             diag_color = (255, 200, 50)
+        elif self.alert_category == 'alerta':
+            diag_text = [
+                "Estado: RIESGO ELEVADO",
+                "• Densidad alta o flujo rápido",
+                "• Probabilidad de incidentes ++",
+                "• Preparar personal de seguridad"
+            ]
+            diag_color = (255, 100, 0)
         else:
             diag_text = [
                 "Estado: CRÍTICO",
