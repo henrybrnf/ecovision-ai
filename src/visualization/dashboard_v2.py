@@ -102,15 +102,20 @@ class DashboardV2:
     def _load_fonts(self):
         """Carga las fuentes."""
         try:
-            self.fonts['title'] = pygame.font.SysFont('Segoe UI', 28, bold=True)
-            self.fonts['subtitle'] = pygame.font.SysFont('Segoe UI', 16)
-            self.fonts['normal'] = pygame.font.SysFont('Segoe UI', 13)
-            self.fonts['small'] = pygame.font.SysFont('Segoe UI', 11)
+            self.fonts['title'] = pygame.font.SysFont('Arial', 26, bold=True)
+            self.fonts['subtitle'] = pygame.font.SysFont('Arial', 15)
+            self.fonts['normal'] = pygame.font.SysFont('Arial', 14)
+            self.fonts['small'] = pygame.font.SysFont('Arial', 12)
+            self.fonts['tiny'] = pygame.font.SysFont('Arial', 10)
         except:
-            self.fonts['title'] = pygame.font.Font(None, 32)
+            self.fonts['title'] = pygame.font.Font(None, 30)
             self.fonts['subtitle'] = pygame.font.Font(None, 18)
-            self.fonts['normal'] = pygame.font.Font(None, 14)
-            self.fonts['small'] = pygame.font.Font(None, 12)
+            self.fonts['normal'] = pygame.font.Font(None, 16)
+            self.fonts['small'] = pygame.font.Font(None, 14)
+            self.fonts['tiny'] = pygame.font.Font(None, 12)
+        
+        # Variable para velocidad actual
+        self.current_speed = 1
     
     def _create_ui(self):
         """Crea los componentes de UI."""
@@ -275,6 +280,7 @@ class DashboardV2:
     
     def _on_speed_click(self, speed: int):
         """Manejador de botones de velocidad."""
+        self.current_speed = speed
         if self.on_speed_change:
             self.on_speed_change(speed)
     
@@ -566,38 +572,70 @@ class DashboardV2:
         """Dibuja información adicional en el panel de control."""
         rect = self.control_panel.content_rect
         
-        # Información de teclas
-        y = rect.y + 145
+        # Etiqueta de velocidad sobre los botones
+        speed_label = self.fonts['small'].render(
+            f"Velocidad: x{self.current_speed}",
+            True, Colors.TEXT_PRIMARY
+        )
+        self.screen.blit(speed_label, (rect.x + 5, rect.y + 138))
         
-        info_lines = [
-            ("SPACE", "Pausar/Continuar"),
-            ("R", "Reiniciar"),
-            ("ESC", "Salir"),
-        ]
-        
-        for key, desc in info_lines:
-            key_text = self.fonts['small'].render(key, True, Colors.PRIMARY)
-            desc_text = self.fonts['small'].render(f": {desc}", True, Colors.TEXT_MUTED)
-            self.screen.blit(key_text, (rect.x + 5, y))
-            self.screen.blit(desc_text, (rect.x + 55, y))
-            y += 18
-        
-        # Información del sistema
-        y += 10
+        # Línea separadora
+        y = rect.y + 160
         pygame.draw.line(
             self.screen, Colors.BORDER,
             (rect.x + 5, y), (rect.right - 5, y)
         )
         y += 10
         
-        info = [
-            "CNN: YOLOv8",
-            "Fuzzy: scikit-fuzzy",
-            "GA: Custom",
-            "NN: 8-6-4"
+        # Título de atajos
+        shortcuts_title = self.fonts['small'].render(
+            "Atajos de Teclado:",
+            True, Colors.TEXT_SECONDARY
+        )
+        self.screen.blit(shortcuts_title, (rect.x + 5, y))
+        y += 20
+        
+        # Información de teclas
+        info_lines = [
+            ("SPACE", "Pausar"),
+            ("R", "Reiniciar"),
+            ("ESC", "Salir"),
         ]
         
-        for line in info:
-            text = self.fonts['small'].render(line, True, Colors.TEXT_MUTED)
-            self.screen.blit(text, (rect.x + 5, y))
-            y += 15
+        for key, desc in info_lines:
+            key_text = self.fonts['small'].render(f"[{key}]", True, Colors.PRIMARY)
+            desc_text = self.fonts['small'].render(desc, True, Colors.TEXT_MUTED)
+            self.screen.blit(key_text, (rect.x + 5, y))
+            self.screen.blit(desc_text, (rect.x + 60, y))
+            y += 16
+        
+        # Línea separadora
+        y += 5
+        pygame.draw.line(
+            self.screen, Colors.BORDER,
+            (rect.x + 5, y), (rect.right - 5, y)
+        )
+        y += 10
+        
+        # Título de tecnologías
+        tech_title = self.fonts['small'].render(
+            "Tecnologías IA:",
+            True, Colors.TEXT_SECONDARY
+        )
+        self.screen.blit(tech_title, (rect.x + 5, y))
+        y += 18
+        
+        info = [
+            ("CNN", "YOLOv8"),
+            ("Fuzzy", "Alertas"),
+            ("GA", "Evolución"),
+            ("NN", "Cerebros"),
+        ]
+        
+        for tech, desc in info:
+            tech_text = self.fonts['tiny'].render(tech, True, Colors.INFO)
+            desc_text = self.fonts['tiny'].render(f": {desc}", True, Colors.TEXT_MUTED)
+            self.screen.blit(tech_text, (rect.x + 5, y))
+            self.screen.blit(desc_text, (rect.x + 45, y))
+            y += 14
+
