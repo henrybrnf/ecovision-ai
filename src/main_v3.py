@@ -24,9 +24,10 @@ from src.visualization.dashboard_v3 import DashboardV3, DashboardConfig
 class EcoVisionV3:
     """Aplicación v3.0 con interfaz clara."""
     
-    def __init__(self, video_source: str = None, use_webcam: bool = False):
+    def __init__(self, video_source: str = None, use_webcam: bool = False, model_path: str = "yolov8n.pt"):
         self.video_source = video_source
         self.use_webcam = use_webcam
+        self.model_path = model_path
         
         self.detector = None
         self.video_processor = None
@@ -50,7 +51,7 @@ class EcoVisionV3:
         # Detector
         print("  [1/4] Detector YOLO...")
         self.detector = YOLODetector(
-            model_path="yolov8n.pt",
+            model_path=self.model_path,
             confidence_threshold=0.35,
             classes=[0]
         )
@@ -176,9 +177,14 @@ class EcoVisionV3:
                         for _ in range(self.speed):
                             self.simulation.update(positions, last_alert_level)
                 
+                # Calcular estadísticas académicas
+                det_metrics = self.detector.get_detection_metrics(last_detections)
+                
                 # Actualizar dashboard
                 stats = self.simulation.get_statistics()
                 stats['frame_count'] = self.frame_count
+                stats['avg_confidence'] = det_metrics['avg_confidence']
+                stats['density'] = det_metrics['density']
                 
                 self.dashboard.update(
                     frame=last_frame,
@@ -218,9 +224,14 @@ def main():
     parser = argparse.ArgumentParser(description="EcoVision AI v3.0")
     parser.add_argument("--video", "-v", type=str, help="Ruta al video")
     parser.add_argument("--webcam", "-w", action="store_true", help="Usar webcam")
+    parser.add_argument("--model", "-m", type=str, default="yolov8n.pt", help="Modelo YOLO (n, s, m, l, x)")
     args = parser.parse_args()
     
-    app = EcoVisionV3(video_source=args.video, use_webcam=args.webcam)
+    app = EcoVisionV3(
+        video_source=args.video, 
+        use_webcam=args.webcam,
+        model_path=args.model
+    )
     app.run()
 
 

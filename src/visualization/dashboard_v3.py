@@ -254,36 +254,45 @@ class DashboardV3:
         # === HEADER ===
         self._draw_header()
         
-        # Calcular áreas
-        header_h = 60
-        margin = 10
+        # Calcular áreas dinámicamente
+        header_h = 55
+        margin = 8
         
-        # Área superior: Video y Ecosistema
-        top_h = (h - header_h - margin * 3) * 0.6
+        # Área útil total
+        usable_h = h - header_h - margin * 3
+        usable_w = w - margin * 3
         
-        # Panel de Video (izquierda)
+        # Área superior: 55% para Video y Ecosistema
+        top_h = int(usable_h * 0.55)
+        
+        # Panel de Video (izquierda - 50%)
         video_rect = pygame.Rect(
-            margin, header_h + margin,
-            (w - margin * 3) // 2, int(top_h)
+            margin, 
+            header_h + margin,
+            usable_w // 2, 
+            top_h
         )
         
-        # Panel de Ecosistema (derecha)
+        # Panel de Ecosistema (derecha - 50%)
         eco_rect = pygame.Rect(
-            video_rect.right + margin, header_h + margin,
-            w - video_rect.right - margin * 2, int(top_h)
+            video_rect.right + margin, 
+            header_h + margin,
+            usable_w - video_rect.width - margin, 
+            top_h
         )
         
-        # Área inferior: Alerta y Estadísticas
+        # Área inferior: 45% restante
         bottom_y = video_rect.bottom + margin
         bottom_h = h - bottom_y - margin
         
-        # Panel de Alerta (izquierda, más grande)
+        # Panel de Alerta (izquierda - ancho fijo 280px)
+        alert_w = min(280, usable_w // 3)
         alert_rect = pygame.Rect(
             margin, bottom_y,
-            300, bottom_h
+            alert_w, bottom_h
         )
         
-        # Panel de Estadísticas (derecha)
+        # Panel de Estadísticas (derecha - resto del espacio)
         stats_rect = pygame.Rect(
             alert_rect.right + margin, bottom_y,
             w - alert_rect.right - margin * 2, bottom_h
@@ -297,25 +306,25 @@ class DashboardV3:
     
     def _draw_header(self):
         """Dibuja el header."""
-        header_rect = pygame.Rect(0, 0, self.config.width, 55)
+        header_rect = pygame.Rect(0, 0, self.config.width, 50)
         pygame.draw.rect(self.screen, self.BG_PANEL, header_rect)
         
         # Línea inferior
         pygame.draw.line(
             self.screen, self.ACCENT,
-            (0, 54), (self.config.width, 54), 3
+            (0, 49), (self.config.width, 49), 2
         )
         
-        # Título
-        title = self.fonts['big'].render("🎯 EcoVision AI", True, self.TEXT_WHITE)
-        self.screen.blit(title, (20, 12))
+        # Título (más compacto)
+        title = self.fonts['title'].render("EcoVision AI v3.0", True, self.TEXT_WHITE)
+        self.screen.blit(title, (15, 13))
         
-        # Subtítulo
-        subtitle = self.fonts['normal'].render(
-            "Sistema de Vigilancia con IA: CNN + Lógica Difusa + Algoritmo Genético",
+        # Subtítulo corto
+        subtitle = self.fonts['small'].render(
+            "CNN + Lógica Difusa + Algoritmo Genético",
             True, self.TEXT_LIGHT
         )
-        self.screen.blit(subtitle, (220, 18))
+        self.screen.blit(subtitle, (200, 17))
         
         # Estado
         status_text = "⏸ PAUSADO" if self.paused else "▶ ACTIVO"
@@ -467,104 +476,98 @@ class DashboardV3:
         """Dibuja el panel de alerta con semáforo de 3 colores."""
         content = self._draw_panel_bg(rect, "🚦 ALERTA")
         
-        # Color actual según categoría
         alert_color = self.ALERT_COLORS.get(self.alert_category, (100, 100, 100))
         
-        # === SEMÁFORO ESTÁNDAR (3 LUCES) ===
-        sem_x = content.x + 50
-        sem_y = content.y + 10
+        # Calcular tamaños relativos al panel
+        sem_radius = min(15, content.height // 10)
+        sem_x = content.x + 35
+        sem_y = content.y + 5
         
-        # Fondo del semáforo
-        sem_bg = pygame.Rect(sem_x - 25, sem_y, 50, 130)
-        pygame.draw.rect(self.screen, (25, 25, 30), sem_bg, border_radius=8)
-        pygame.draw.rect(self.screen, (60, 60, 70), sem_bg, width=2, border_radius=8)
+        # Fondo del semáforo (compacto)
+        sem_h = sem_radius * 7
+        sem_bg = pygame.Rect(sem_x - sem_radius - 5, sem_y, sem_radius * 2 + 10, sem_h)
+        pygame.draw.rect(self.screen, (25, 25, 30), sem_bg, border_radius=6)
+        pygame.draw.rect(self.screen, (60, 60, 70), sem_bg, width=1, border_radius=6)
         
-        # Las 3 luces: ROJO (arriba), AMARILLO (medio), VERDE (abajo)
-        luz_rojo_y = sem_y + 25
-        luz_amarillo_y = sem_y + 65
-        luz_verde_y = sem_y + 105
+        # 3 luces
+        luz_spacing = sem_h // 4
+        luz_rojo_y = sem_y + luz_spacing
+        luz_amarillo_y = sem_y + luz_spacing * 2
+        luz_verde_y = sem_y + luz_spacing * 3
         
-        # Determinar qué luz está encendida
+        # Estados
         luz_rojo_on = self.alert_category == 'emergencia'
         luz_amarillo_on = self.alert_category == 'precaución'
         luz_verde_on = self.alert_category == 'normal'
         
-        # Dibujar luz ROJA
-        rojo = self.ALERT_COLORS['emergencia'] if luz_rojo_on else (60, 20, 20)
-        pygame.draw.circle(self.screen, rojo, (sem_x, luz_rojo_y), 18)
-        pygame.draw.circle(self.screen, (80, 80, 90), (sem_x, luz_rojo_y), 18, 2)
+        # Dibujar luces
+        rojo = self.ALERT_COLORS['emergencia'] if luz_rojo_on else (50, 15, 15)
+        pygame.draw.circle(self.screen, rojo, (sem_x, luz_rojo_y), sem_radius)
         
-        # Dibujar luz AMARILLA
-        amarillo = self.ALERT_COLORS['precaución'] if luz_amarillo_on else (60, 50, 10)
-        pygame.draw.circle(self.screen, amarillo, (sem_x, luz_amarillo_y), 18)
-        pygame.draw.circle(self.screen, (80, 80, 90), (sem_x, luz_amarillo_y), 18, 2)
+        amarillo = self.ALERT_COLORS['precaución'] if luz_amarillo_on else (50, 40, 10)
+        pygame.draw.circle(self.screen, amarillo, (sem_x, luz_amarillo_y), sem_radius)
         
-        # Dibujar luz VERDE
-        verde = self.ALERT_COLORS['normal'] if luz_verde_on else (10, 50, 20)
-        pygame.draw.circle(self.screen, verde, (sem_x, luz_verde_y), 18)
-        pygame.draw.circle(self.screen, (80, 80, 90), (sem_x, luz_verde_y), 18, 2)
+        verde = self.ALERT_COLORS['normal'] if luz_verde_on else (10, 40, 15)
+        pygame.draw.circle(self.screen, verde, (sem_x, luz_verde_y), sem_radius)
         
-        # === INFORMACIÓN A LA DERECHA DEL SEMÁFORO ===
-        info_x = sem_x + 50
+        # Info a la derecha del semáforo
+        info_x = sem_x + 45
         info_y = sem_y + 5
         
-        # Porcentaje grande
+        # Porcentaje
         pct_text = f"{self.alert_level:.0%}"
-        pct_surf = self.fonts['big'].render(pct_text, True, alert_color)
+        pct_surf = self.fonts['title'].render(pct_text, True, alert_color)
         self.screen.blit(pct_surf, (info_x, info_y))
         
         # Categoría
         cat_names = {'normal': 'NORMAL', 'precaución': 'PRECAUCIÓN', 'emergencia': 'EMERGENCIA'}
         cat_text = cat_names.get(self.alert_category, 'NORMAL')
-        cat_surf = self.fonts['normal'].render(cat_text, True, alert_color)
-        self.screen.blit(cat_surf, (info_x, info_y + 35))
+        cat_surf = self.fonts['small'].render(cat_text, True, alert_color)
+        self.screen.blit(cat_surf, (info_x, info_y + 25))
         
         # Descripción
         descriptions = {
-            'normal': 'Situación tranquila',
-            'precaución': 'Vigilar situación',
-            'emergencia': '¡Acción requerida!'
+            'normal': 'Tranquilo',
+            'precaución': 'Vigilar',
+            'emergencia': '¡Acción!'
         }
         desc = descriptions.get(self.alert_category, '')
         desc_surf = self.fonts['small'].render(desc, True, self.TEXT_LIGHT)
-        self.screen.blit(desc_surf, (info_x, info_y + 55))
+        self.screen.blit(desc_surf, (info_x, info_y + 42))
         
-        # === LEYENDA DE COLORES ===
-        ley_y = content.y + 150
+        # Línea separadora
+        sep_y = sem_y + sem_h + 10
+        pygame.draw.line(self.screen, (50, 50, 60), 
+                        (content.x + 5, sep_y), (content.right - 5, sep_y))
         
-        leyenda_title = self.fonts['small'].render("Significado:", True, self.TEXT_DIM)
-        self.screen.blit(leyenda_title, (content.x + 10, ley_y))
-        ley_y += 18
-        
+        # Leyenda compacta
+        ley_y = sep_y + 8
         leyenda = [
-            ("🔴", "ROJO", ">70%", "Emergencia"),
-            ("🟡", "AMAR", "30-70%", "Precaución"),
-            ("🟢", "VERDE", "<30%", "Normal"),
+            ("🔴 >70%", "Emergencia"),
+            ("🟡 30-70%", "Precaución"),
+            ("🟢 <30%", "Normal"),
         ]
         
-        for emoji, color_name, rango, estado in leyenda:
-            # Emoji como indicador
-            line = f"{emoji} {rango} = {estado}"
-            line_surf = self.fonts['small'].render(line, True, self.TEXT_LIGHT)
-            self.screen.blit(line_surf, (content.x + 10, ley_y))
-            ley_y += 16
+        for rango, estado in leyenda:
+            line_surf = self.fonts['small'].render(f"{rango}: {estado}", True, self.TEXT_LIGHT)
+            self.screen.blit(line_surf, (content.x + 8, ley_y))
+            ley_y += 15
         
-        # === CÓMO SE CALCULA ===
-        calc_y = ley_y + 10
-        
-        calc_title = self.fonts['small'].render("Cálculo:", True, self.TEXT_DIM)
-        self.screen.blit(calc_title, (content.x + 10, calc_y))
-        calc_y += 18
-        
-        calc_lines = [
-            f"Personas: {len(self.detections)}",
-            f"Densidad: {len(self.detections)/12:.0%}",
-        ]
-        
-        for line in calc_lines:
-            line_surf = self.fonts['small'].render(line, True, self.TEXT_LIGHT)
-            self.screen.blit(line_surf, (content.x + 10, calc_y))
-            calc_y += 15
+        # Datos actuales (si hay espacio)
+        if ley_y + 40 < content.bottom:
+            ley_y += 5
+            pygame.draw.line(self.screen, (50, 50, 60), 
+                            (content.x + 5, ley_y), (content.right - 5, ley_y))
+            ley_y += 8
+            
+            datos = [
+                f"Personas: {len(self.detections)}",
+                f"Densidad: {len(self.detections)/12:.0%}",
+            ]
+            for dato in datos:
+                dato_surf = self.fonts['small'].render(dato, True, self.TEXT_DIM)
+                self.screen.blit(dato_surf, (content.x + 8, ley_y))
+                ley_y += 14
     
     def _draw_stats_panel(self, rect):
         """Dibuja el panel de estadísticas y controles."""
@@ -573,72 +576,126 @@ class DashboardV3:
         # Dividir en columnas
         col_w = content.width // 3
         
-        # === COLUMNA 1: ESTADÍSTICAS ===
+    def _draw_stats_panel(self, rect):
+        """
+        Dibuja el panel de estadísticas y controles con enfoque académico.
+        Incluye Diagnóstico de IA y Nivel de Confianza.
+        """
+        content = self._draw_panel_bg(rect, "📊 PANEL DE CONTROL Y DIAGNÓSTICO IA")
+        
+        # Dividir en 3 columnas
+        col_w = (content.width - 20) // 3
+        
+        # === COLUMNA 1: DIAGNÓSTICO IA ===
         col1_x = content.x + 10
         y = content.y + 10
         
-        stats_title = self.fonts['normal'].render("ESTADÍSTICAS", True, self.ACCENT)
-        self.screen.blit(stats_title, (col1_x, y))
+        diag_title = self.fonts['normal'].render("DIAGNÓSTICO DEL SISTEMA", True, self.ACCENT)
+        self.screen.blit(diag_title, (col1_x, y))
+        y += 25
+        
+        # Texto de diagnóstico dinámico
+        metrics = {
+            'count': len(self.detections),
+            'density': self.stats.get('density', 0),
+            'speed': 1.0  # Placeholder, idealmente vendría de la simulación
+        }
+        
+        if self.alert_category == 'normal':
+            diag_text = [
+                "Estado: NOMINAL",
+                "• Densidad de ocupación baja",
+                "• Flujo de movimiento estable",
+                "• Sin anomalías detectadas"
+            ]
+            diag_color = (100, 255, 100)
+        elif self.alert_category == 'precaución':
+            diag_text = [
+                "Estado: ADVERTENCIA",
+                "• Aumento de densidad detectado",
+                "• Posible congestión en zonas",
+                "• Se recomienda monitorización"
+            ]
+            diag_color = (255, 200, 50)
+        else:
+            diag_text = [
+                "Estado: CRÍTICO",
+                "• Densidad excede límites seguros",
+                "• Riesgo de estampida/colisión",
+                "• Protocolo de evacuación sugerido"
+            ]
+            diag_color = (255, 50, 50)
+            
+        for line in diag_text:
+            text_surf = self.fonts['small'].render(line, True, diag_color if "Estado" in line else self.TEXT_LIGHT)
+            self.screen.blit(text_surf, (col1_x, y))
+            y += 18
+
+        y += 10
+        # Nivel de Confianza (Detección)
+        conf_title = self.fonts['small'].render("CONFIANZA DE VISIÓN (CNN)", True, self.TEXT_DIM)
+        self.screen.blit(conf_title, (col1_x, y))
+        y += 20
+        
+        avg_conf = self.stats.get('avg_confidence', 0.0)
+        conf_color = (0, 200, 80) if avg_conf > 0.7 else (255, 100, 50)
+        
+        # Barra de confianza
+        bar_w = col_w - 20
+        pygame.draw.rect(self.screen, self.BG_CARD, (col1_x, y, bar_w, 15), border_radius=5)
+        pygame.draw.rect(self.screen, conf_color, (col1_x, y, int(bar_w * avg_conf), 15), border_radius=5)
+        
+        conf_text = self.fonts['small'].render(f"{avg_conf:.1%}", True, self.TEXT_WHITE)
+        self.screen.blit(conf_text, (col1_x + bar_w + 5, y - 2))
+        
+        
+        # === COLUMNA 2: ESTADÍSTICAS Y CONTROLES ===
+        col2_x = content.x + col_w + 10
+        y = content.y + 10
+        
+        stats_title = self.fonts['normal'].render("MÉTRICAS EVOLUTIVAS", True, self.ACCENT)
+        self.screen.blit(stats_title, (col2_x, y))
         y += 25
         
         stats_data = [
-            ("Frames:", self.stats.get('frame_count', 0)),
-            ("Personas:", len(self.detections)),
             ("Generación:", self.stats.get('generation', 0)),
-            ("Mejor Fitness:", f"{self.stats.get('best_fitness', 0):.1f}"),
-            ("Fitness Prom:", f"{self.stats.get('avg_fitness', 0):.1f}"),
+            ("Población:", len(self.agents)),
+            ("Mejor Fitness:", f"{self.stats.get('best_fitness', 0):.2f}"),
+            ("Prom. Fitness:", f"{self.stats.get('avg_fitness', 0):.2f}"),
         ]
         
         for label, value in stats_data:
             label_surf = self.fonts['small'].render(label, True, self.TEXT_DIM)
             value_surf = self.fonts['small'].render(str(value), True, self.TEXT_WHITE)
-            self.screen.blit(label_surf, (col1_x, y))
-            self.screen.blit(value_surf, (col1_x + 100, y))
-            y += 20
-        
-        # === COLUMNA 2: CONTROLES ===
-        col2_x = content.x + col_w + 10
-        y = content.y + 10
-        
-        ctrl_title = self.fonts['normal'].render("CONTROLES", True, self.ACCENT)
+            self.screen.blit(label_surf, (col2_x, y))
+            self.screen.blit(value_surf, (col2_x + 90, y))
+            y += 18
+            
+        y += 15
+        ctrl_title = self.fonts['normal'].render("CONTROL DE SIMULACIÓN", True, self.ACCENT)
         self.screen.blit(ctrl_title, (col2_x, y))
         y += 25
         
-        # Velocidad actual
+        # Velocidad
         speed_text = f"Velocidad: x{self.current_speed}"
-        speed_surf = self.fonts['normal'].render(speed_text, True, self.TEXT_WHITE)
+        speed_surf = self.fonts['small'].render(speed_text, True, self.TEXT_WHITE)
         self.screen.blit(speed_surf, (col2_x, y))
-        y += 25
         
-        # Botones de velocidad
-        btn_colors = [(80, 100, 180), (100, 80, 180), (180, 80, 100)]
+        # Botones pequeños
         for i, speed in enumerate([1, 2, 3]):
-            btn_rect = pygame.Rect(col2_x + i * 55, y, 50, 30)
-            color = btn_colors[i] if self.current_speed == speed else self.BG_CARD
+            btn_rect = pygame.Rect(col2_x + 80 + i * 35, y - 5, 30, 20)
+            color = (80, 120, 200) if self.current_speed == speed else self.BG_CARD
+            pygame.draw.rect(self.screen, color, btn_rect, border_radius=3)
+            pygame.draw.rect(self.screen, self.TEXT_DIM, btn_rect, width=1, border_radius=3)
             
-            pygame.draw.rect(self.screen, color, btn_rect, border_radius=5)
-            pygame.draw.rect(self.screen, self.TEXT_DIM, btn_rect, width=1, border_radius=5)
+            num = self.fonts['small'].render(str(speed), True, self.TEXT_WHITE)
+            num_rect = num.get_rect(center=btn_rect.center)
+            self.screen.blit(num, num_rect)
             
-            btn_text = self.fonts['small'].render(f"x{speed}", True, self.TEXT_WHITE)
-            btn_text_rect = btn_text.get_rect(center=btn_rect.center)
-            self.screen.blit(btn_text, btn_text_rect)
+        y += 25
+        shortcuts_surf = self.fonts['small'].render("[ESPACIO]: Pausa | [R]: Reset | [ESC]: Salir", True, self.TEXT_DIM)
+        self.screen.blit(shortcuts_surf, (col2_x, y))
         
-        y += 45
-        
-        # Atajos
-        shortcuts = [
-            ("[SPACE]", "Pausar"),
-            ("[R]", "Reiniciar"),
-            ("[1/2/3]", "Velocidad"),
-            ("[ESC]", "Salir"),
-        ]
-        
-        for key, desc in shortcuts:
-            key_surf = self.fonts['small'].render(key, True, self.ACCENT)
-            desc_surf = self.fonts['small'].render(desc, True, self.TEXT_DIM)
-            self.screen.blit(key_surf, (col2_x, y))
-            self.screen.blit(desc_surf, (col2_x + 70, y))
-            y += 18
         
         # === COLUMNA 3: GRÁFICOS ===
         col3_x = content.x + col_w * 2 + 10
@@ -647,17 +704,17 @@ class DashboardV3:
         
         # Gráfico de Fitness
         self._draw_mini_graph(
-            pygame.Rect(col3_x, content.y + 10, graph_w, graph_h - 5),
+            pygame.Rect(col3_x, content.y + 10, graph_w, graph_h),
             self.fitness_history,
-            "EVOLUCIÓN FITNESS",
+            "APRENDIZAJE (Fitness)",
             (0, 200, 80)
         )
         
         # Gráfico de Detecciones
         self._draw_mini_graph(
-            pygame.Rect(col3_x, content.y + graph_h + 15, graph_w, graph_h - 5),
+            pygame.Rect(col3_x, content.y + graph_h + 20, graph_w, graph_h),
             self.detection_history,
-            "PERSONAS DETECTADAS",
+            "FLUJO DE PERSONAS",
             (100, 130, 255)
         )
     
