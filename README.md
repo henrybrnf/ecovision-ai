@@ -44,7 +44,8 @@ Desarrollar un prototipo funcional que demuestre la integración efectiva de cua
 |-----------|---------------------|
 | [**FUNDAMENTOS_ACADEMICOS.md**](FUNDAMENTOS_ACADEMICOS.md) | **MATRIZ DE TÉCNICAS (Sección 4)**, Marco Teórico y Matemáticas. |
 | [**IMPACTO_Y_APLICACIONES.md**](IMPACTO_Y_APLICACIONES.md) | **JUSTIFICACIÓN TÉCNICA**, Casos de Uso (Smart Cities, Robótica) y Ética. |
-| [**README.md**](README.md) | Guía de instalación y uso técnico. |
+| [**GUIA_DE_INSTALACION.md**](GUIA_DE_INSTALACION.md) | **PASO A PASO**: Cómo configurar el proyecto en una PC nueva. |
+| [**README.md**](README.md) | Guía de uso rápido. |
 
 ### Características Principales
 
