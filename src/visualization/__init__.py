@@ -3,14 +3,15 @@
 Dashboard y visualización del sistema EcoVision AI.
 
 Este módulo proporciona:
-- Dashboard: Interfaz principal que integra todo
+- DashboardV2: Interfaz principal mejorada con botones
 - EcosystemRenderer: Renderizado del ecosistema 2D
 - VideoRenderer: Renderizado de video con detecciones
+- UI Components: Botones, paneles, gráficos
 
 Example:
-    >>> from src.visualization import Dashboard
+    >>> from src.visualization import DashboardV2
     >>> 
-    >>> dashboard = Dashboard()
+    >>> dashboard = DashboardV2()
     >>> dashboard.start()
     >>> dashboard.update(frame, detections, agents, alert_level)
     >>> dashboard.stop()
@@ -18,10 +19,29 @@ Example:
 
 from .renderer import EcosystemRenderer, VideoRenderer, RenderConfig
 from .dashboard import Dashboard
+from .dashboard_v2 import DashboardV2, DashboardConfig
+from .ui_components import (
+    Colors, Button, Panel, Chart, AlertIndicator, 
+    StatCard, ProgressBar, Slider, ButtonStyle
+)
 
 __all__ = [
+    # Dashboards
     "Dashboard",
+    "DashboardV2",
+    "DashboardConfig",
+    # Renderers
     "EcosystemRenderer",
     "VideoRenderer",
-    "RenderConfig"
+    "RenderConfig",
+    # UI Components
+    "Colors",
+    "Button",
+    "Panel",
+    "Chart",
+    "AlertIndicator",
+    "StatCard",
+    "ProgressBar",
+    "Slider",
+    "ButtonStyle"
 ]

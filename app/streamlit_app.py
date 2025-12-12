@@ -1,19 +1,16 @@
 """
-EcoVision AI - Interfaz Web con Streamlit
+EcoVision AI - Dashboard Unificado
 
-Una interfaz moderna y detallada para visualizar el sistema
-de vigilancia inteligente con todos sus componentes.
-
-Ejecutar con:
-    streamlit run app/streamlit_app.py
+Dashboard principal que muestra todo el sistema funcionando:
+- Video con detecciones en tiempo real
+- Ecosistema de agentes evolucionando
+- Indicadores de alerta
+- Estadísticas de evolución
 """
 
 import streamlit as st
 import cv2
 import numpy as np
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
 import time
 import sys
 from pathlib import Path
@@ -21,46 +18,119 @@ from pathlib import Path
 # Agregar el directorio raíz al path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.detector import YOLODetector, VideoProcessor
+from src.detector import YOLODetector
 from src.fuzzy_logic import AlertSystem
 from src.ecosystem import Simulation, SimulationConfig
 
-# Configuración de la página
+# Configuración de la página - DEBE SER PRIMERO
 st.set_page_config(
-    page_title="EcoVision AI",
+    page_title="🎯 EcoVision AI - Dashboard",
     page_icon="🎯",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# CSS personalizado
+# CSS personalizado para un diseño moderno
 st.markdown("""
 <style>
+    /* Ocultar elementos de Streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Fondo oscuro */
     .stApp {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
     }
+    
+    /* Header */
     .main-header {
         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        padding: 20px;
-        border-radius: 10px;
+        padding: 15px 30px;
+        border-radius: 15px;
         margin-bottom: 20px;
-        text-align: center;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
     }
-    .metric-card {
-        background: rgba(255,255,255,0.1);
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 4px solid #667eea;
+    .main-header h1 {
+        color: white;
+        margin: 0;
+        font-size: 2rem;
     }
-    .alert-normal { background-color: rgba(0,255,100,0.2); border-left-color: #00ff64; }
-    .alert-precaucion { background-color: rgba(255,255,0,0.2); border-left-color: #ffff00; }
-    .alert-alerta { background-color: rgba(255,165,0,0.2); border-left-color: #ffa500; }
-    .alert-emergencia { background-color: rgba(255,0,0,0.2); border-left-color: #ff0000; }
-    .module-box {
+    .main-header p {
+        color: rgba(255,255,255,0.8);
+        margin: 5px 0 0 0;
+    }
+    
+    /* Paneles */
+    .panel {
         background: rgba(255,255,255,0.05);
+        border-radius: 15px;
+        padding: 15px;
+        border: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 15px;
+    }
+    .panel-title {
+        color: #667eea;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+        border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+        padding-bottom: 8px;
+    }
+    
+    /* Alertas */
+    .alert-indicator {
         padding: 20px;
-        border-radius: 10px;
+        border-radius: 15px;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: bold;
         margin: 10px 0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    }
+    .alert-normal { 
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+    .alert-precaucion { 
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: black;
+    }
+    .alert-alerta { 
+        background: linear-gradient(135deg, #fd7e14 0%, #dc3545 100%);
+        color: white;
+    }
+    .alert-emergencia { 
+        background: linear-gradient(135deg, #dc3545 0%, #721c24 100%);
+        color: white;
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+    
+    /* Stats */
+    .stat-card {
+        background: rgba(102, 126, 234, 0.2);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+    .stat-label {
+        font-size: 0.9rem;
+        color: rgba(255,255,255,0.7);
+    }
+    
+    /* Métricas personalizadas */
+    div[data-testid="stMetricValue"] {
+        font-size: 1.8rem;
+        color: #667eea;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -68,46 +138,127 @@ st.markdown("""
 
 def init_session_state():
     """Inicializa el estado de la sesión."""
-    if 'initialized' not in st.session_state:
-        st.session_state.initialized = False
-        st.session_state.detector = None
-        st.session_state.alert_system = None
-        st.session_state.simulation = None
-        st.session_state.video_processor = None
-        st.session_state.running = False
-        st.session_state.frame_count = 0
-        st.session_state.detection_history = []
-        st.session_state.alert_history = []
-        st.session_state.fitness_history = []
+    defaults = {
+        'running': False,
+        'detector': None,
+        'alert_system': None,
+        'simulation': None,
+        'video_cap': None,
+        'frame_count': 0,
+        'total_detections': 0,
+        'detection_history': [],
+        'alert_history': [],
+        'fitness_history': [],
+        'last_frame': None,
+        'last_detections': [],
+        'mapped_detections': [],  # Detecciones mapeadas al ecosistema
+        'current_alert': 'normal',
+        'current_alert_level': 0.0,
+        'skip_frames': 2,  # Procesar cada N frames para velocidad
+        'frame_skip_counter': 0,
+    }
+    
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
 
-def initialize_components():
-    """Inicializa los componentes del sistema."""
-    with st.spinner("🔄 Inicializando componentes de IA..."):
-        # Detector YOLO
+def load_components():
+    """Carga los componentes de IA."""
+    if st.session_state.detector is None:
         st.session_state.detector = YOLODetector(
             model_path="yolov8n.pt",
-            confidence_threshold=0.5,
+            confidence_threshold=0.25,  # Más bajo para mejor detección
             classes=[0]
         )
-        
-        # Sistema Difuso
+    
+    if st.session_state.alert_system is None:
         st.session_state.alert_system = AlertSystem(max_persons=20)
-        
-        # Simulación
+    
+    if st.session_state.simulation is None:
         config = SimulationConfig(
-            world_width=400,
-            world_height=300,
-            agent_count=15,
-            steps_per_generation=200,
+            world_width=350,
+            world_height=250,
+            agent_count=10,  # Menos agentes para velocidad
+            steps_per_generation=100,
             max_generations=1000
         )
         st.session_state.simulation = Simulation(config=config)
         st.session_state.simulation.start()
-        
-        st.session_state.initialized = True
+
+
+def process_frame(frame):
+    """Procesa un frame: detecta personas y evalúa alertas."""
+    # Obtener dimensiones del frame
+    frame_h, frame_w = frame.shape[:2]
     
-    st.success("✅ Componentes inicializados correctamente!")
+    # Detectar personas
+    detections = st.session_state.detector.detect(frame)
+    
+    # Actualizar contadores
+    st.session_state.frame_count += 1
+    st.session_state.total_detections += len(detections)
+    st.session_state.last_detections = detections
+    
+    # Mapear detecciones al espacio del ecosistema (350x250)
+    eco_w, eco_h = 350, 250
+    mapped_positions = []
+    for det in detections:
+        # Escalar posición del video al ecosistema
+        x = int(det.center[0] * eco_w / frame_w)
+        y = int(det.center[1] * eco_h / frame_h)
+        x = max(10, min(x, eco_w - 10))
+        y = max(10, min(y, eco_h - 10))
+        mapped_positions.append((x, y))
+    
+    st.session_state.mapped_detections = mapped_positions
+    
+    # Calcular velocidad (simulada)
+    movement_speed = min(len(detections) / 6, 1.0)
+    
+    # Evaluar alerta con lógica difusa
+    result = st.session_state.alert_system.evaluate(
+        person_count=len(detections),
+        movement_speed=movement_speed,
+        zone_density=len(detections) / 12
+    )
+    
+    st.session_state.current_alert = result.alert_category
+    st.session_state.current_alert_level = result.alert_level
+    
+    # Actualizar historiales
+    st.session_state.detection_history.append(len(detections))
+    st.session_state.alert_history.append(result.alert_level)
+    
+    # Mantener historiales cortos
+    if len(st.session_state.detection_history) > 50:
+        st.session_state.detection_history.pop(0)
+        st.session_state.alert_history.pop(0)
+    
+    # Actualizar ecosistema con posiciones mapeadas (solo 1 paso para velocidad)
+    st.session_state.simulation.update(mapped_positions, result.alert_level)
+    
+    # Dibujar detecciones en el frame
+    frame_with_detections = frame.copy()
+    for det in detections:
+        x1, y1, x2, y2 = det.bbox
+        
+        # Color según confianza
+        if det.confidence > 0.5:
+            color = (0, 255, 0)  # Verde
+        elif det.confidence > 0.35:
+            color = (0, 255, 255)  # Amarillo
+        else:
+            color = (0, 165, 255)  # Naranja
+        
+        cv2.rectangle(frame_with_detections, (x1, y1), (x2, y2), color, 2)
+        
+        # Etiqueta
+        label = f"{det.confidence:.0%}"
+        cv2.putText(frame_with_detections, label, (x1, y1-5),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    
+    return frame_with_detections, len(detections)
 
 
 def render_header():
@@ -120,404 +271,249 @@ def render_header():
     """, unsafe_allow_html=True)
 
 
-def render_sidebar():
-    """Renderiza la barra lateral con controles."""
-    st.sidebar.title("⚙️ Controles")
+def render_ecosystem_canvas(width=350, height=250):
+    """Renderiza el ecosistema como imagen."""
+    # Crear imagen del ecosistema
+    canvas = np.zeros((height, width, 3), dtype=np.uint8)
+    canvas[:] = (30, 30, 40)  # Fondo oscuro
     
-    # Sección de Video
-    st.sidebar.header("📹 Fuente de Video")
-    video_option = st.sidebar.radio(
-        "Seleccionar fuente:",
-        ["Video de prueba", "Subir archivo", "Sin video (solo ecosistema)"]
-    )
+    # Dibujar grid
+    for x in range(0, width, 50):
+        cv2.line(canvas, (x, 0), (x, height), (50, 50, 60), 1)
+    for y in range(0, height, 50):
+        cv2.line(canvas, (0, y), (width, y), (50, 50, 60), 1)
     
-    video_path = None
-    if video_option == "Video de prueba":
-        if Path("data/videos/people-walking.mp4").exists():
-            video_path = "data/videos/people-walking.mp4"
-        elif Path("data/videos/sample.mp4").exists():
-            video_path = "data/videos/sample.mp4"
-    elif video_option == "Subir archivo":
-        uploaded = st.sidebar.file_uploader("Cargar video", type=['mp4', 'avi', 'mov'])
-        if uploaded:
-            # Guardar temporalmente
-            temp_path = Path("data/videos/uploaded.mp4")
-            temp_path.write_bytes(uploaded.read())
-            video_path = str(temp_path)
-    
-    # Parámetros del Detector
-    st.sidebar.header("🔍 Detector YOLO")
-    confidence = st.sidebar.slider("Confianza mínima", 0.1, 1.0, 0.5, 0.1)
-    
-    # Parámetros del Ecosistema
-    st.sidebar.header("🧬 Algoritmo Genético")
-    mutation_rate = st.sidebar.slider("Tasa de mutación", 0.01, 0.5, 0.1, 0.01)
-    agent_count = st.sidebar.slider("Número de agentes", 5, 30, 15)
-    
-    # Controles
-    st.sidebar.header("🎮 Control")
-    col1, col2 = st.sidebar.columns(2)
-    
-    start_btn = col1.button("▶️ Iniciar", use_container_width=True)
-    stop_btn = col2.button("⏹️ Detener", use_container_width=True)
-    reset_btn = st.sidebar.button("🔄 Reiniciar", use_container_width=True)
-    
-    return {
-        'video_path': video_path,
-        'confidence': confidence,
-        'mutation_rate': mutation_rate,
-        'agent_count': agent_count,
-        'start': start_btn,
-        'stop': stop_btn,
-        'reset': reset_btn
-    }
-
-
-def render_theory_section():
-    """Renderiza la sección de teoría."""
-    st.header("📚 Fundamentos Teóricos")
-    
-    tabs = st.tabs(["🧠 CNN (YOLO)", "🌀 Lógica Difusa", "🧬 Algoritmo Genético", "🔗 Integración"])
-    
-    with tabs[0]:
-        st.markdown("""
-        ### Redes Neuronales Convolucionales - YOLOv8
+    # Dibujar detecciones como puntos de interés (usando posiciones mapeadas)
+    for pos in st.session_state.mapped_detections:
+        x, y = pos
         
-        **YOLO** (You Only Look Once) es una arquitectura de detección de objetos en tiempo real.
-        
-        **Cómo funciona:**
-        1. La imagen se divide en una cuadrícula
-        2. Cada celda predice bounding boxes y probabilidades
-        3. Se aplica Non-Maximum Suppression para filtrar
-        
-        **En nuestro sistema:** Detecta personas en el video y extrae sus posiciones.
-        """)
-        
-        # Diagrama CNN
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=[1, 2, 3, 4, 5],
-            y=[1, 1, 1, 1, 1],
-            mode='markers+text',
-            marker=dict(size=[40, 50, 60, 50, 40], color=['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']),
-            text=['Input', 'Conv', 'Pool', 'Dense', 'Output'],
-            textposition='top center'
-        ))
-        fig.update_layout(
-            title="Arquitectura Simplificada CNN",
-            showlegend=False,
-            height=200,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white')
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        # Círculo rojo pulsante para marcar personas detectadas
+        cv2.circle(canvas, (x, y), 15, (0, 0, 150), 2)
+        cv2.circle(canvas, (x, y), 8, (0, 0, 255), -1)
+        cv2.circle(canvas, (x, y), 3, (255, 255, 255), -1)
     
-    with tabs[1]:
-        st.markdown("""
-        ### Lógica Difusa - Sistema de Alertas
-        
-        La lógica difusa maneja la **incertidumbre** mediante conjuntos difusos.
-        
-        **Variables de entrada:**
-        - `cantidad_personas`: pocas, moderadas, muchas
-        - `velocidad_movimiento`: lento, moderado, rápido
-        
-        **Reglas IF-THEN:**
-        - IF personas=muchas AND velocidad=rápida THEN alerta=EMERGENCIA
-        - IF personas=pocas AND velocidad=lenta THEN alerta=NORMAL
-        """)
-        
-        # Gráfico de funciones de membresía
-        x = np.linspace(0, 20, 100)
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=x, y=np.maximum(0, 1 - x/5), name='Pocas', fill='tozeroy'))
-        fig.add_trace(go.Scatter(x=x, y=np.exp(-((x-10)/4)**2), name='Moderadas', fill='tozeroy'))
-        fig.add_trace(go.Scatter(x=x, y=np.maximum(0, (x-12)/8), name='Muchas', fill='tozeroy'))
-        fig.update_layout(
-            title="Funciones de Membresía - Cantidad de Personas",
-            xaxis_title="Personas",
-            yaxis_title="Grado de Membresía",
-            height=300,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(30,30,50,0.5)',
-            font=dict(color='white')
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with tabs[2]:
-        st.markdown("""
-        ### Algoritmo Genético - Evolución de Agentes
-        
-        Los agentes tienen **cerebros** (redes neuronales) que evolucionan.
-        
-        **Proceso evolutivo:**
-        1. **Selección**: Los mejores agentes sobreviven
-        2. **Cruzamiento**: Combinan sus "genes" (pesos de la red)
-        3. **Mutación**: Cambios aleatorios para explorar
-        4. **Nueva generación**: Población renovada
-        
-        **Fitness**: Mide qué tan bien un agente detecta amenazas.
-        """)
-        
-        # Diagrama de evolución
-        generations = list(range(1, 11))
-        fitness = [10 + i*5 + np.random.randn()*3 for i in range(10)]
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=generations, y=fitness, mode='lines+markers', name='Mejor Fitness'))
-        fig.update_layout(
-            title="Ejemplo de Evolución del Fitness",
-            xaxis_title="Generación",
-            yaxis_title="Fitness",
-            height=300,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(30,30,50,0.5)',
-            font=dict(color='white')
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with tabs[3]:
-        st.markdown("""
-        ### Integración del Sistema
-        
-        ```
-        VIDEO → YOLO → Detecciones → LÓGICA DIFUSA → Nivel de Alerta
-                           ↓                              ↓
-                    ECOSISTEMA ←────────────────────────────
-                           ↓
-                  ALGORITMO GENÉTICO → Agentes Evolucionados
-        ```
-        
-        **Flujo de datos:**
-        1. El video es procesado por YOLO
-        2. Las detecciones alimentan al sistema difuso
-        3. El nivel de alerta afecta el ecosistema
-        4. Los agentes que mejor responden sobreviven
-        """)
-
-
-def render_demo_section(params):
-    """Renderiza la sección de demostración."""
-    st.header("🎮 Demostración en Vivo")
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.subheader("📹 Video con Detecciones")
-        video_placeholder = st.empty()
-        detection_count = st.empty()
-    
-    with col2:
-        st.subheader("🤖 Ecosistema de Agentes")
-        ecosystem_placeholder = st.empty()
-        generation_info = st.empty()
-    
-    # Métricas
-    st.subheader("📊 Métricas en Tiempo Real")
-    metric_cols = st.columns(4)
-    
-    with metric_cols[0]:
-        persons_metric = st.empty()
-    with metric_cols[1]:
-        alert_metric = st.empty()
-    with metric_cols[2]:
-        generation_metric = st.empty()
-    with metric_cols[3]:
-        fitness_metric = st.empty()
-    
-    # Gráficos
-    chart_col1, chart_col2 = st.columns(2)
-    
-    with chart_col1:
-        st.subheader("📈 Historial de Detecciones")
-        detection_chart = st.empty()
-    
-    with chart_col2:
-        st.subheader("🧬 Evolución del Fitness")
-        fitness_chart = st.empty()
-    
-    return {
-        'video_placeholder': video_placeholder,
-        'ecosystem_placeholder': ecosystem_placeholder,
-        'detection_count': detection_count,
-        'generation_info': generation_info,
-        'persons_metric': persons_metric,
-        'alert_metric': alert_metric,
-        'generation_metric': generation_metric,
-        'fitness_metric': fitness_metric,
-        'detection_chart': detection_chart,
-        'fitness_chart': fitness_chart
-    }
-
-
-def run_demo(params, placeholders):
-    """Ejecuta la demostración."""
-    if not st.session_state.initialized:
-        st.warning("⚠️ Primero inicializa los componentes")
-        return
-    
-    video_path = params.get('video_path')
-    
-    # Procesar un frame
-    if video_path and Path(video_path).exists():
-        if st.session_state.video_processor is None:
-            st.session_state.video_processor = VideoProcessor(video_path)
-        
-        ret, frame = st.session_state.video_processor.read()
-        if not ret:
-            st.session_state.video_processor.reset()
-            ret, frame = st.session_state.video_processor.read()
-        
-        if ret:
-            # Detectar
-            detections = st.session_state.detector.detect(frame)
+    # Dibujar agentes
+    if st.session_state.simulation and st.session_state.simulation.agents:
+        for agent in st.session_state.simulation.agents:
+            ax = int(agent.position[0])
+            ay = int(agent.position[1])
+            ax = max(5, min(ax, width-5))
+            ay = max(5, min(ay, height-5))
             
-            # Dibujar detecciones
-            for det in detections:
-                x1, y1, x2, y2 = det.bbox
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(frame, f"{det.confidence:.0%}", (x1, y1-10),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            # Cuerpo del agente
+            cv2.circle(canvas, (ax, ay), 6, agent.color, -1)
             
-            # Mostrar video
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            placeholders['video_placeholder'].image(frame_rgb, channels="RGB", use_container_width=True)
-            placeholders['detection_count'].info(f"🔍 Personas detectadas: {len(detections)}")
-            
-            # Evaluar alerta
-            person_count = len(detections)
-            movement_speed = min(person_count / 10, 1.0)
-            result = st.session_state.alert_system.evaluate(
-                person_count=person_count,
-                movement_speed=movement_speed
-            )
-            
-            # Actualizar ecosistema
-            det_positions = [d.center for d in detections]
-            st.session_state.simulation.update(det_positions, result.alert_level)
-            
-            # Actualizar historial
-            st.session_state.detection_history.append(person_count)
-            st.session_state.alert_history.append(result.alert_level)
-            
-            if len(st.session_state.detection_history) > 100:
-                st.session_state.detection_history.pop(0)
-                st.session_state.alert_history.pop(0)
-            
-            # Estadísticas
-            stats = st.session_state.simulation.get_statistics()
-            
-            # Actualizar métricas
-            placeholders['persons_metric'].metric("👥 Personas", person_count)
-            placeholders['alert_metric'].metric("🚨 Alerta", f"{result.alert_category.upper()}")
-            placeholders['generation_metric'].metric("🧬 Generación", stats.get('generation', 0))
-            placeholders['fitness_metric'].metric("💪 Mejor Fitness", f"{stats.get('best_fitness', 0):.1f}")
-            
-            # Crear gráfico de ecosistema
-            fig_eco = go.Figure()
-            for agent in st.session_state.simulation.agents:
-                fig_eco.add_trace(go.Scatter(
-                    x=[agent.position[0]],
-                    y=[agent.position[1]],
-                    mode='markers',
-                    marker=dict(size=10, color=f'rgb{agent.color}'),
-                    name=f'Agente {agent.id}'
-                ))
-            fig_eco.update_layout(
-                showlegend=False,
-                height=300,
-                xaxis=dict(range=[0, 400], showgrid=False),
-                yaxis=dict(range=[0, 300], showgrid=False),
-                paper_bgcolor='rgba(20,20,30,1)',
-                plot_bgcolor='rgba(30,30,50,1)',
-                margin=dict(l=0, r=0, t=0, b=0)
-            )
-            placeholders['ecosystem_placeholder'].plotly_chart(fig_eco, use_container_width=True)
-            placeholders['generation_info'].success(f"Gen {stats.get('generation', 0)} | Paso {stats.get('step', 0)}")
-            
-            # Gráficos de historial
-            if len(st.session_state.detection_history) > 1:
-                fig_det = px.line(y=st.session_state.detection_history, title="")
-                fig_det.update_layout(height=200, showlegend=False,
-                                     paper_bgcolor='rgba(0,0,0,0)',
-                                     plot_bgcolor='rgba(30,30,50,0.5)')
-                placeholders['detection_chart'].plotly_chart(fig_det, use_container_width=True)
-            
-            best_history = stats.get('best_history', [])
-            if len(best_history) > 1:
-                fig_fit = px.line(y=best_history, title="")
-                fig_fit.update_layout(height=200, showlegend=False,
-                                     paper_bgcolor='rgba(0,0,0,0)',
-                                     plot_bgcolor='rgba(30,30,50,0.5)')
-                placeholders['fitness_chart'].plotly_chart(fig_fit, use_container_width=True)
-    else:
-        # Sin video - solo ecosistema
-        st.session_state.simulation.update([], 0.3)
-        stats = st.session_state.simulation.get_statistics()
-        
-        placeholders['video_placeholder'].info("📹 No hay video cargado")
-        placeholders['persons_metric'].metric("👥 Personas", 0)
-        placeholders['generation_metric'].metric("🧬 Generación", stats.get('generation', 0))
-        placeholders['fitness_metric'].metric("💪 Mejor Fitness", f"{stats.get('best_fitness', 0):.1f}")
+            # Indicador de dirección
+            dx = int(np.cos(agent.angle) * 10)
+            dy = int(np.sin(agent.angle) * 10)
+            cv2.line(canvas, (ax, ay), (ax+dx, ay+dy), (255, 255, 255), 2)
+    
+    return canvas
 
 
 def main():
-    """Función principal."""
+    """Función principal del dashboard."""
     init_session_state()
     render_header()
     
-    # Sidebar
-    params = render_sidebar()
-    
-    # Pestañas principales
-    main_tabs = st.tabs(["🎮 Demo en Vivo", "📚 Teoría", "ℹ️ Acerca de"])
-    
-    with main_tabs[0]:
-        # Botón de inicialización
-        if not st.session_state.initialized:
-            if st.button("🚀 Inicializar Sistema", type="primary", use_container_width=True):
-                initialize_components()
-                st.rerun()
+    # Sidebar para controles
+    with st.sidebar:
+        st.header("⚙️ Controles")
+        
+        # Selección de video
+        st.subheader("📹 Video")
+        videos_dir = Path("data/videos")
+        video_files = list(videos_dir.glob("*.mp4")) if videos_dir.exists() else []
+        
+        if video_files:
+            selected_video = st.selectbox(
+                "Seleccionar video:",
+                video_files,
+                format_func=lambda x: x.name
+            )
         else:
-            placeholders = render_demo_section(params)
-            
-            if params['start']:
-                st.session_state.running = True
-            if params['stop']:
-                st.session_state.running = False
-            if params['reset']:
+            st.warning("No hay videos en data/videos/")
+            selected_video = None
+        
+        st.divider()
+        
+        # Controles
+        col1, col2 = st.columns(2)
+        start_btn = col1.button("▶️ Iniciar", type="primary", use_container_width=True)
+        stop_btn = col2.button("⏹️ Parar", use_container_width=True)
+        
+        if st.button("🔄 Reiniciar", use_container_width=True):
+            st.session_state.frame_count = 0
+            st.session_state.total_detections = 0
+            st.session_state.detection_history = []
+            st.session_state.alert_history = []
+            if st.session_state.simulation:
                 st.session_state.simulation.reset()
-                st.session_state.detection_history.clear()
-                st.session_state.alert_history.clear()
-            
-            if st.session_state.running:
-                run_demo(params, placeholders)
-                time.sleep(0.03)  # ~30 FPS
-                st.rerun()
-    
-    with main_tabs[1]:
-        render_theory_section()
-    
-    with main_tabs[2]:
-        st.header("ℹ️ Acerca del Proyecto")
-        st.markdown("""
-        ### EcoVision AI
+            st.rerun()
         
-        **Sistema Inteligente de Vigilancia con Detección de Objetos y Agentes Evolutivos**
+        st.divider()
         
-        Este proyecto integra 4 técnicas de Inteligencia Artificial:
-        
-        1. 🧠 **Redes Neuronales Convolucionales** - Detección de personas con YOLOv8
-        2. 🌀 **Lógica Difusa** - Evaluación de nivel de alerta
-        3. 🧬 **Algoritmos Genéticos** - Evolución de agentes
-        4. 🤖 **Redes Neuronales** - Cerebros de agentes
-        
-        ---
-        
-        **Desarrollado para:** Curso de Inteligencia Artificial
-        
-        **Tecnologías:** Python, YOLOv8, scikit-fuzzy, Pygame, Streamlit
+        # Info del sistema
+        st.subheader("ℹ️ Sistema")
+        st.caption("""
+        **CNN**: YOLOv8 (detección)
+        **Fuzzy**: Evaluación de alertas
+        **GA**: Evolución de agentes
+        **NN**: Cerebros de agentes
         """)
+    
+    # Manejo de botones
+    if start_btn and selected_video:
+        load_components()
+        st.session_state.video_cap = cv2.VideoCapture(str(selected_video))
+        st.session_state.running = True
+    
+    if stop_btn:
+        st.session_state.running = False
+        if st.session_state.video_cap:
+            st.session_state.video_cap.release()
+            st.session_state.video_cap = None
+    
+    # ========== DASHBOARD PRINCIPAL ==========
+    
+    # Fila 1: Video y Ecosistema
+    col_video, col_eco = st.columns([1.5, 1])
+    
+    with col_video:
+        st.markdown('<div class="panel"><div class="panel-title">📹 Detección de Personas (YOLO)</div>', unsafe_allow_html=True)
+        video_placeholder = st.empty()
+        detection_info = st.empty()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col_eco:
+        st.markdown('<div class="panel"><div class="panel-title">🤖 Ecosistema Evolutivo</div>', unsafe_allow_html=True)
+        eco_placeholder = st.empty()
+        eco_info = st.empty()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Fila 2: Alerta y Estadísticas
+    col_alert, col_stats = st.columns([1, 2])
+    
+    with col_alert:
+        st.markdown('<div class="panel"><div class="panel-title">🚦 Nivel de Alerta</div>', unsafe_allow_html=True)
+        alert_placeholder = st.empty()
+        alert_detail = st.empty()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col_stats:
+        st.markdown('<div class="panel"><div class="panel-title">📊 Estadísticas</div>', unsafe_allow_html=True)
+        stats_cols = st.columns(4)
+        stat_frames = stats_cols[0].empty()
+        stat_persons = stats_cols[1].empty()
+        stat_gen = stats_cols[2].empty()
+        stat_fitness = stats_cols[3].empty()
+        
+        chart_placeholder = st.empty()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # ========== LOOP DE PROCESAMIENTO ==========
+    
+    if st.session_state.running and st.session_state.video_cap:
+        while st.session_state.running:
+            ret, frame = st.session_state.video_cap.read()
+            
+            if not ret:
+                # Reiniciar video
+                st.session_state.video_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                continue
+            
+            # Procesar frame
+            processed_frame, person_count = process_frame(frame)
+            
+            # Mostrar video
+            frame_rgb = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+            video_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
+            detection_info.caption(f"👥 Detectadas: **{person_count}** personas | Frame: {st.session_state.frame_count}")
+            
+            # Mostrar ecosistema
+            eco_canvas = render_ecosystem_canvas()
+            eco_rgb = cv2.cvtColor(eco_canvas, cv2.COLOR_BGR2RGB)
+            eco_placeholder.image(eco_rgb, channels="RGB", use_container_width=True)
+            
+            stats = st.session_state.simulation.get_statistics()
+            eco_info.caption(f"🧬 Gen: **{stats.get('generation', 0)}** | Paso: {stats.get('step', 0)}")
+            
+            # Mostrar alerta
+            alert_cat = st.session_state.current_alert
+            alert_level = st.session_state.current_alert_level
+            alert_class = f"alert-{alert_cat.replace('ó', 'o')}"
+            
+            alert_placeholder.markdown(f"""
+            <div class="alert-indicator {alert_class}">
+                {alert_cat.upper()}<br>
+                <span style="font-size: 2.5rem;">{alert_level:.0%}</span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            alert_detail.caption(f"Basado en: {person_count} personas, velocidad simulada")
+            
+            # Actualizar estadísticas
+            stat_frames.metric("🖼️ Frames", st.session_state.frame_count)
+            stat_persons.metric("👥 Total Det.", st.session_state.total_detections)
+            stat_gen.metric("🧬 Generación", stats.get('generation', 0))
+            stat_fitness.metric("💪 Mejor Fitness", f"{stats.get('best_fitness', 0):.1f}")
+            
+            # Gráfico de historial
+            if len(st.session_state.detection_history) > 2:
+                import plotly.graph_objects as go
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    y=st.session_state.detection_history,
+                    mode='lines',
+                    name='Detecciones',
+                    line=dict(color='#667eea', width=2)
+                ))
+                fig.add_trace(go.Scatter(
+                    y=[a * 10 for a in st.session_state.alert_history],
+                    mode='lines',
+                    name='Alerta x10',
+                    line=dict(color='#dc3545', width=2)
+                ))
+                fig.update_layout(
+                    height=150,
+                    margin=dict(l=0, r=0, t=10, b=0),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(255,255,255,0.05)',
+                    showlegend=True,
+                    legend=dict(orientation="h", y=1.1),
+                    xaxis=dict(showgrid=False, showticklabels=False),
+                    yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)')
+                )
+                chart_placeholder.plotly_chart(fig, use_container_width=True)
+            
+            # Pequeña pausa para no saturar
+            time.sleep(0.05)
+    
+    else:
+        # Estado inicial - mostrar placeholders
+        video_placeholder.info("▶️ Selecciona un video y presiona 'Iniciar' en la barra lateral")
+        
+        # Mostrar ecosistema estático
+        if st.session_state.simulation is None:
+            load_components()
+        
+        eco_canvas = render_ecosystem_canvas()
+        eco_rgb = cv2.cvtColor(eco_canvas, cv2.COLOR_BGR2RGB)
+        eco_placeholder.image(eco_rgb, channels="RGB", use_container_width=True)
+        eco_info.caption("⏸️ Esperando inicio...")
+        
+        alert_placeholder.markdown("""
+        <div class="alert-indicator alert-normal">
+            NORMAL<br>
+            <span style="font-size: 2.5rem;">0%</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        stat_frames.metric("🖼️ Frames", 0)
+        stat_persons.metric("👥 Total Det.", 0)
+        stat_gen.metric("🧬 Generación", 1)
+        stat_fitness.metric("💪 Mejor Fitness", "0.0")
 
 
 if __name__ == "__main__":
