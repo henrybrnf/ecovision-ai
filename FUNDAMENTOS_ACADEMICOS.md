@@ -9,12 +9,13 @@
 1. [Introducción](#1-introducción)
 2. [Planteamiento del Problema](#2-planteamiento-del-problema)
 3. [Objetivos](#3-objetivos)
-4. [Marco Teórico](#4-marco-teórico)
-5. [Justificación](#5-justificación)
-6. [Metodología](#6-metodología)
-7. [Aplicaciones y Relevancia](#7-aplicaciones-y-relevancia)
-8. [Conclusiones](#8-conclusiones)
-9. [Referencias Bibliográficas](#9-referencias-bibliográficas)
+4. [Matriz de Aplicación de Técnicas de IA](#4-matriz-de-aplicación-de-técnicas-de-ia)
+5. [Marco Teórico](#5-marco-teórico)
+6. [Justificación](#6-justificación)
+7. [Metodología](#7-metodología)
+8. [Aplicaciones y Relevancia](#8-aplicaciones-y-relevancia)
+9. [Conclusiones](#9-conclusiones)
+10. [Referencias Bibliográficas](#10-referencias-bibliográficas)
 
 ---
 
@@ -72,7 +73,49 @@ Desarrollar un sistema integrado de vigilancia inteligente que combine técnicas
 
 ---
 
-## 4. Marco Teórico
+## 4. Matriz de Aplicación de Técnicas de IA
+
+A continuación se detalla cómo se implementa cada tema requerido del curso, su relación con el sistema global y cómo se mide su desempeño.
+
+### 4.1 Redes Neuronales (Deep Learning + MLP)
+| Característica | Detalle |
+|----------------|---------|
+| **¿Dónde?** | `src/detector/yolo_detector.py` (CNN - YOLOv8) y `src/ecosystem/neural_brain.py` (Perceptrón Multicapa). |
+| **Relación** | El sistema tiene **dos cerebros**. 1) La **CNN (YOLO)** actúa como la corteza visual, *viendo* el mundo. 2) El **MLP (Agente)** actúa como el cerebelo, decidiendo *movimientos* (velocidad/giro) basados en sensores. |
+| **Resultados** | 1) Cajas delimitadoras (Bounding Boxes) alrededor de personas. 2) Vectores de movimiento continuo para agentes robóticos. |
+| **Confianza** | **CNN:** Score de confianza (0.0 - 1.0) por detección. Se filtra todo < 0.35. Promedio académico: >80% (Modelo S). **MLP:** No tiene "confianza" per se, su éxito se mide en supervivencia (Fitness). |
+| **Métrica** | **mAP (Mean Average Precision)** para YOLO. **Fitness/Edad** para el Agente. |
+
+### 4.2 Algoritmos Genéticos (Computación Evolutiva)
+| Característica | Detalle |
+|----------------|---------|
+| **¿Dónde?** | `src/ecosystem/genetics.py` |
+| **Relación** | Es el **optimizador** del sistema. En lugar de usar Backpropagation (gradiente) para entrenar a los agentes, usamos evolución darwiniana. Si la población se estanca, la genética "muta" para encontrar nuevas soluciones. |
+| **Resultados** | Una población de agentes que mejora generación tras generación. Aprenden a comer y evitar morir sin ser programados explícitamente. |
+| **Confianza** | Se mide por la **convergencia**. Si el fitness promedio sube, el algoritmo funciona. |
+| **Métrica** | **Mejor Fitness** y **Fitness Promedio** histórico. |
+
+### 4.3 Lógica Difusa (Fuzzy Logic)
+| Característica | Detalle |
+|----------------|---------|
+| **¿Dónde?** | `src/fuzzy_logic/fuzzy_system.py` |
+| **Relación** | Es el **juez/árbitro**. Toma datos duros (tasa de ocupación, velocidad promedio) y emite un juicio humano ("Emergencia", "Precaución"). Interactúa con el usuario final mostrando el semáforo. |
+| **Resultados** | Nivel de Alerta escalar (0.0 - 1.0) y Categoría Lingüística ("Alerta Roja"). |
+| **Confianza** | Grado de Membresía. Un valor de 0.8 en "Emergencia" significa que el sistema está 80% seguro de que la situación es crítica. |
+| **Métrica** | **Centroide (Defuzzificación)**. |
+
+### 4.4 Reconocimiento de Patrones (Visión Clásica)
+| Característica | Detalle |
+|----------------|---------|
+| **¿Dónde?** | `src/detector/motion_detector.py` y `src/detector/tracker.py` |
+| **Relación** | Es el **respaldo robusto**. Mientras YOLO busca formas humanas complejas, este módulo busca cambios simples de píxeles (sustracción de fondo MOG2) y coherencia temporal. Ayuda a detectar movimiento incluso si la red neuronal falla o es lenta. |
+| **Resultados** | Detección de "Blobs" de movimiento y trayectorias de velocidad. |
+| **Confianza** | Filtrado geométrico. Si el objeto detectado tiene una relación de aspecto humana (alto > ancho) y persiste por 5 frames, se confía en él. |
+| **Métrica** | **IoU (Intersección sobre Unión)** y Persistencia Temporal. |
+
+---
+
+## 5. Marco Teórico
 
 ### 4.1 Redes Neuronales Convolucionales (CNN)
 
@@ -184,9 +227,9 @@ A diferencia del entrenamiento tradicional mediante backpropagation, los pesos d
 
 ---
 
-## 5. Justificación
+## 6. Justificación
 
-### 5.1 Justificación Académica
+### 6.1 Justificación Académica
 
 Este proyecto aborda cuatro de los temas fundamentales del currículum de Inteligencia Artificial, demostrando no solo comprensión teórica de cada técnica, sino también la capacidad de integrarlas en un sistema funcional. Esta integración representa un nivel de complejidad superior al estudio aislado de cada tema, requiriendo:
 
@@ -195,11 +238,11 @@ Este proyecto aborda cuatro de los temas fundamentales del currículum de Inteli
 - Capacidad de debugging y optimización de sistemas complejos
 - Competencias de documentación y comunicación técnica
 
-### 5.2 Justificación Tecnológica
+### 6.2 Justificación Tecnológica
 
 La combinación de técnicas implementada refleja las tendencias actuales en sistemas de IA industrial. Según el informe "State of AI 2023" de McKinsey, el 65% de las organizaciones utilizan múltiples técnicas de IA de manera integrada. Los sistemas de vigilancia inteligente representan un mercado global valorado en 45.5 mil millones de dólares en 2023, con proyección de crecimiento del 12.1% anual según Grand View Research.
 
-### 5.3 Justificación Social
+### 6.3 Justificación Social
 
 Los sistemas de vigilancia inteligente tienen aplicaciones directas en:
 - Seguridad pública y prevención del crimen
@@ -209,13 +252,13 @@ Los sistemas de vigilancia inteligente tienen aplicaciones directas en:
 
 ---
 
-## 6. Metodología
+## 7. Metodología
 
-### 6.1 Enfoque de Desarrollo
+### 7.1 Enfoque de Desarrollo
 
 Se adopta una metodología de desarrollo iterativo e incremental, donde el sistema se construye en módulos independientes que se integran progresivamente. Cada módulo se desarrolla siguiendo el ciclo: diseño, implementación, prueba, refinamiento.
 
-### 6.2 Fases del Proyecto
+### 7.2 Fases del Proyecto
 
 **Fase 1 - Configuración del Entorno**
 Establecimiento del entorno de desarrollo, control de versiones y estructura del proyecto.
@@ -235,7 +278,7 @@ Unificación de módulos y desarrollo de la interfaz de visualización.
 **Fase 6 - Pruebas y Documentación**
 Validación del sistema y elaboración de documentación final.
 
-### 6.3 Herramientas y Tecnologías
+### 7.3 Herramientas y Tecnologías
 
 | Categoría | Herramienta | Justificación |
 |-----------|-------------|---------------|
@@ -247,9 +290,9 @@ Validación del sistema y elaboración de documentación final.
 
 ---
 
-## 7. Aplicaciones y Relevancia
+## 8. Aplicaciones y Relevancia
 
-### 7.1 Aplicaciones Industriales
+### 8.1 Aplicaciones Industriales
 
 #### Ciudades Inteligentes (Smart Cities)
 Los sistemas de vigilancia inteligente son componentes fundamentales de las iniciativas de ciudades inteligentes a nivel mundial. Ciudades como Singapur, Barcelona y Dubái han implementado sistemas similares para:
@@ -269,7 +312,7 @@ Las cadenas de retail utilizan tecnologías similares para:
 - Gestión de aforo y flujos
 - Prevención de pérdidas
 
-### 7.2 Impacto Esperado
+### 8.2 Impacto Esperado
 
 El desarrollo exitoso de este proyecto contribuye a:
 
@@ -279,7 +322,7 @@ El desarrollo exitoso de este proyecto contribuye a:
 
 ---
 
-## 8. Conclusiones
+## 9. Conclusiones
 
 El proyecto EcoVision AI representa un esfuerzo por integrar múltiples paradigmas de Inteligencia Artificial en un sistema cohesivo y funcional. La combinación de Redes Neuronales Convolucionales para percepción, Lógica Difusa para razonamiento bajo incertidumbre, y Algoritmos Genéticos con Redes Neuronales para comportamiento adaptativo, demuestra que es posible crear sistemas de IA complejos mediante la integración sinérgica de técnicas complementarias.
 
@@ -294,7 +337,7 @@ Este proyecto sienta las bases para futuras extensiones, incluyendo la incorpora
 
 ---
 
-## 9. Referencias Bibliográficas
+## 10. Referencias Bibliográficas
 
 ### Redes Neuronales y Aprendizaje Profundo
 

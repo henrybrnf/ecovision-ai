@@ -40,6 +40,13 @@
 
 Desarrollar un prototipo funcional que demuestre la integración efectiva de cuatro paradigmas de Inteligencia Artificial trabajando de manera coordinada para resolver un problema de vigilancia inteligente.
 
+### 📚 Documentación Clave (Lectura Obligatoria)
+| Documento | Contenido Principal |
+|-----------|---------------------|
+| [**FUNDAMENTOS_ACADEMICOS.md**](FUNDAMENTOS_ACADEMICOS.md) | **MATRIZ DE TÉCNICAS (Sección 4)**, Marco Teórico y Matemáticas. |
+| [**IMPACTO_Y_APLICACIONES.md**](IMPACTO_Y_APLICACIONES.md) | **JUSTIFICACIÓN TÉCNICA**, Casos de Uso (Smart Cities, Robótica) y Ética. |
+| [**README.md**](README.md) | Guía de instalación y uso técnico. |
+
 ### Características Principales
 
 | Característica | Descripción |
