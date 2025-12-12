@@ -58,6 +58,9 @@ class GeneticAlgorithm:
         """
         self.config = config or GeneticConfig()
         self.generation = 0
+        self.stagnation_counter = 0     # Contador de estancamiento
+        self.current_mutation_rate = self.config.mutation_rate
+        self.current_mutation_strength = self.config.mutation_strength
         
         # Historial
         self.best_fitness_history: List[float] = []
@@ -145,9 +148,34 @@ class GeneticAlgorithm:
             agent: Agente a mutar
         """
         agent.brain.mutate(
-            mutation_rate=self.config.mutation_rate,
-            mutation_strength=self.config.mutation_strength
+            mutation_rate=self.current_mutation_rate,
+            mutation_strength=self.current_mutation_strength
         )
+    
+    def _adjust_mutation_rate(self):
+        """Ajusta la tasa de mutación basado en el progreso."""
+        if len(self.avg_fitness_history) < 2:
+            return
+
+        current_avg = self.avg_fitness_history[-1]
+        prev_avg = self.avg_fitness_history[-2]
+        
+        # Si la mejora es mínima (< 1%), incrementar estancamiento
+        if (current_avg - prev_avg) < (prev_avg * 0.01):
+            self.stagnation_counter += 1
+        else:
+            self.stagnation_counter = 0 # Reset si hay mejora
+            
+        # Lógica adaptativa
+        if self.stagnation_counter > 5:
+            # Crisis: Aumentar drásticamente mutación para escapar del mínimo local
+            self.current_mutation_rate = min(0.5, self.config.mutation_rate * 3.0)
+            self.current_mutation_strength = self.config.mutation_strength * 2.0
+            print(f"⚠️ Estancamiento detectado ({self.stagnation_counter} gen). Mutación boost: {self.current_mutation_rate:.2f}")
+        else:
+            # Normalidad: Restaurar valores base
+            self.current_mutation_rate = self.config.mutation_rate
+            self.current_mutation_strength = self.config.mutation_strength
     
     def evolve(self, population: List[Agent]) -> List[Agent]:
         """
@@ -167,6 +195,9 @@ class GeneticAlgorithm:
         self.best_fitness_history.append(max(fitnesses))
         self.avg_fitness_history.append(np.mean(fitnesses))
         self.worst_fitness_history.append(min(fitnesses))
+        
+        # Ajustar mutación dinámicamente
+        self._adjust_mutation_rate()
         
         new_population = []
         

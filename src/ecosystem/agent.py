@@ -17,10 +17,15 @@ from .neural_brain import NeuralBrain, NeuralBrainConfig
 
 @dataclass
 class AgentConfig:
-    """Configuración del agente."""
-    speed: float = 3.0           # Velocidad de movimiento
-    sensor_range: float = 100.0  # Rango de sensores
-    size: float = 10.0           # Tamaño visual
+    """Configuración avanzada del agente cibernético."""
+    max_speed: float = 5.0       # Velocidad máxima
+    max_energy: float = 100.0    # Energía máxima
+    metabolism: float = 0.1      # Costo de existir por frame
+    move_cost: float = 0.2       # Costo por unidad de movimiento
+    sensor_range: float = 150.0  # Rango de visión
+    size: float = 12.0           # Tamaño visual
+    input_size: int = 16         # Sensores aumentados
+    output_size: int = 2         # Salidas continuas (Speed, Turn)
     
 
 class Agent:
@@ -62,279 +67,187 @@ class Agent:
         config: Optional[AgentConfig] = None,
         brain: Optional[NeuralBrain] = None
     ):
-        """
-        Inicializa un agente.
-        
-        Args:
-            agent_id: ID único del agente
-            world_size: Tamaño del mundo (width, height)
-            position: Posición inicial (opcional, aleatorio si no se da)
-            config: Configuración del agente
-            brain: Cerebro del agente (opcional, nuevo aleatorio si no se da)
-        """
         self.id = agent_id
         self.world_size = world_size
         self.config = config or AgentConfig()
         
-        # Posición inicial
-        if position:
-            self.position = np.array(position, dtype=float)
-        else:
-            self.position = np.array([
-                np.random.uniform(50, world_size[0] - 50),
-                np.random.uniform(50, world_size[1] - 50)
-            ])
+        # Estado Bio-Mecánico
+        self.position = np.array(position if position else [
+            np.random.uniform(50, world_size[0]-50),
+            np.random.uniform(50, world_size[1]-50)
+        ], dtype=float)
         
-        # Velocidad y dirección
         self.velocity = np.array([0.0, 0.0])
         self.angle = np.random.uniform(0, 2 * np.pi)
         
-        # Cerebro
-        self.brain = brain or NeuralBrain(NeuralBrainConfig())
-        
-        # Estado
+        # Metabolismo
+        self.energy = self.config.max_energy
+        self.health = 100.0
         self.alive = True
-        self.fitness = 0.0
         self.age = 0
         
-        # Sensores
-        self.sensor_data = np.zeros(8)
+        # Cerebro (Input 16 -> Hidden -> Output 2)
+        if not brain:
+            brain_config = NeuralBrainConfig(
+                input_size=self.config.input_size,
+                output_size=self.config.output_size
+            )
+            self.brain = NeuralBrain(brain_config)
+        else:
+            self.brain = brain
+            
+        self.fitness = 0.0
+        self.sensor_data = np.zeros(self.config.input_size)
         
-        # Historial
-        self.positions_history: List[Tuple[float, float]] = []
-        self.detections_count = 0
-        
-        # Color (basado en ID para visualización)
+        # Visual
         self._color = self._generate_color()
-    
+        self.positions_history = []
+
     def _generate_color(self) -> Tuple[int, int, int]:
-        """Genera un color único basado en el ID."""
         np.random.seed(self.id)
-        color = tuple(np.random.randint(100, 255, 3).tolist())
-        np.random.seed(None)  # Reset seed
-        return color
-    
-    @property
-    def color(self) -> Tuple[int, int, int]:
-        """Color del agente para visualización."""
-        return self._color
-    
+        # Colores más "robóticos/cyborg" (Azules/Cianes neón)
+        base_color = np.random.choice([0, 1, 2]) # R, G, B dominancia
+        color = [50, 50, 50]
+        color[base_color] = np.random.randint(150, 255)
+        color[(base_color + 1) % 3] = np.random.randint(100, 200)
+        return tuple(color)
+
     def perceive(
         self,
-        detected_objects: List[Tuple[float, float]],
+        detected_objects: List[Tuple[float, float]], # YOLO Obstacles
+        food_items: List[Tuple[float, float]],       # Energy Sources
         alert_level: float = 0.0,
         other_agents: Optional[List['Agent']] = None
     ):
         """
-        Percibe el entorno y actualiza los sensores.
-        
-        Los 8 sensores capturan:
-        - [0-3]: Distancia a objetos detectados en 4 direcciones
-        - [4]: Nivel de alerta actual
-        - [5]: Distancia al borde más cercano
-        - [6]: Densidad de agentes cercanos
-        - [7]: Ángulo hacia el objeto más cercano
-        
-        Args:
-            detected_objects: Lista de posiciones (x, y) de objetos detectados
-            alert_level: Nivel de alerta del sistema difuso (0-1)
-            other_agents: Lista de otros agentes en el mundo
+        Sistema sensorial de 16 canales:
+        [0-3]  : Olor a Comida (4 cuadrantes)
+        [4-7]  : Proximidad a Obstáculos/Humanos (4 cuadrantes)
+        [8-11] : Proximidad a Paredes (4 direcciones)
+        [12]   : Nivel de Energía Probado
+        [13]   : Velocidad Actual
+        [14]   : Nivel de Alerta Global
+        [15]   : Bias/Memoria (Feedback oscilatorio)
         """
-        # Resetear sensores
-        self.sensor_data = np.zeros(8)
+        self.sensor_data.fill(0)
         
-        # Sensor 0-3: Distancia a objetos en 4 direcciones
+        # Función auxiliar para cuadrantes (0: Front, 1: Right, 2: Back, 3: Left)
+        def get_quadrant(angle_diff):
+            angle_diff = (angle_diff + np.pi) % (2*np.pi) - np.pi
+            if -np.pi/4 <= angle_diff < np.pi/4: return 0 # Front
+            elif np.pi/4 <= angle_diff < 3*np.pi/4: return 1 # Right
+            elif -3*np.pi/4 <= angle_diff < -np.pi/4: return 3 # Left
+            else: return 2 # Back
+
+        # 1. Comida (Green dots)
+        if food_items:
+            for food in food_items:
+                vec = np.array(food) - self.position
+                dist = np.linalg.norm(vec)
+                if dist < self.config.sensor_range:
+                    angle_to = np.arctan2(vec[1], vec[0])
+                    quad = get_quadrant(angle_to - self.angle)
+                    intensity = 1.0 - (dist / self.config.sensor_range)
+                    self.sensor_data[quad] = max(self.sensor_data[quad], intensity)
+
+        # 2. Obstáculos Humanos (YOLO)
         if detected_objects:
-            for i, direction in enumerate([0, np.pi/2, np.pi, 3*np.pi/2]):
-                min_dist = self.config.sensor_range
-                for obj_pos in detected_objects:
-                    obj_vec = np.array(obj_pos) - self.position
-                    dist = np.linalg.norm(obj_vec)
-                    if dist < min_dist and dist < self.config.sensor_range:
-                        # Verificar si está en la dirección correcta
-                        angle_to_obj = np.arctan2(obj_vec[1], obj_vec[0])
-                        angle_diff = abs(angle_to_obj - (self.angle + direction))
-                        if angle_diff < np.pi / 4:  # Cono de 45 grados
-                            min_dist = dist
-                
-                # Normalizar distancia (1 = cerca, 0 = lejos)
-                self.sensor_data[i] = 1.0 - (min_dist / self.config.sensor_range)
+            for obj in detected_objects:
+                vec = np.array(obj) - self.position
+                dist = np.linalg.norm(vec)
+                if dist < self.config.sensor_range:
+                    angle_to = np.arctan2(vec[1], vec[0])
+                    quad = get_quadrant(angle_to - self.angle)
+                    intensity = 1.0 - (dist / self.config.sensor_range)
+                    self.sensor_data[4 + quad] = max(self.sensor_data[4 + quad], intensity)
         
-        # Sensor 4: Nivel de alerta
-        self.sensor_data[4] = alert_level
+        # 3. Paredes (Front, Right, Back, Left relativas)
+        # Simplificación: Proyección de rayos
+        # Front Wall
+        ray_x = self.position[0] + np.cos(self.angle) * self.config.sensor_range
+        ray_y = self.position[1] + np.sin(self.angle) * self.config.sensor_range
+        # (Lógica simplificada de distancia a bordes)
+        self.sensor_data[8] = min(self.position[0], self.world_size[0]-self.position[0]) / self.world_size[0] # H-Center
+        self.sensor_data[9] = min(self.position[1], self.world_size[1]-self.position[1]) / self.world_size[1] # V-Center
+        # Usamos sensores 8-11 para posición relativa normalizada en el mapa en lugar de sonar complejo
+        self.sensor_data[10] = self.position[0] / self.world_size[0] # X relativo
+        self.sensor_data[11] = self.position[1] / self.world_size[1] # Y relativo
+
+        # 4. Propiocepción
+        self.sensor_data[12] = self.energy / self.config.max_energy
+        self.sensor_data[13] = np.linalg.norm(self.velocity) / self.config.max_speed
+        self.sensor_data[14] = alert_level
+        self.sensor_data[15] = np.sin(self.age * 0.1) # Oscilador interno (ritmo cardíaco)
+
+    def decide(self):
+        """Red Neuronal produce control continuo: Velocidad y Giro."""
+        output = self.brain.forward(self.sensor_data)
         
-        # Sensor 5: Distancia al borde más cercano (normalizada)
-        border_dists = [
-            self.position[0],  # Izquierda
-            self.world_size[0] - self.position[0],  # Derecha
-            self.position[1],  # Arriba
-            self.world_size[1] - self.position[1]  # Abajo
-        ]
-        min_border = min(border_dists)
-        self.sensor_data[5] = 1.0 - min(min_border / 100, 1.0)
+        # Output 0: Aceleración automática (-1 freno, +1 full gas)
+        target_speed_pct = np.tanh(output[0]) 
         
-        # Sensor 6: Densidad de agentes cercanos
-        if other_agents:
-            nearby = sum(
-                1 for agent in other_agents
-                if agent.id != self.id and
-                np.linalg.norm(agent.position - self.position) < self.config.sensor_range
-            )
-            self.sensor_data[6] = min(nearby / 5, 1.0)  # Normalizar (max 5 cercanos = 1.0)
+        # Output 1: Giro (-1 izquierda, +1 derecha)
+        turn_force = np.tanh(output[1]) 
         
-        # Sensor 7: Ángulo hacia objeto más cercano (normalizado)
-        if detected_objects:
-            closest = min(detected_objects, 
-                         key=lambda p: np.linalg.norm(np.array(p) - self.position))
-            vec_to_closest = np.array(closest) - self.position
-            angle_to_closest = np.arctan2(vec_to_closest[1], vec_to_closest[0])
-            angle_diff = angle_to_closest - self.angle
-            # Normalizar a [-1, 1]
-            self.sensor_data[7] = angle_diff / np.pi
-    
-    def decide(self) -> int:
-        """
-        Usa el cerebro para decidir la siguiente acción.
+        return target_speed_pct, turn_force
+
+    def act(self, action):
+        speed_pct, turn_force = action
         
-        Returns:
-            Índice de la acción elegida (0-3)
-        """
-        # Obtener salida de la red neuronal
-        outputs = self.brain.forward(self.sensor_data)
+        # 1. Aplicar Giro
+        self.angle += turn_force * 0.2
         
-        # Elegir acción con mayor valor
-        action = np.argmax(outputs)
+        # 2. Calcular Velocidad
+        # Mapear -1..1 a 0..max_speed (si speed_pct < 0, frena/retrocede lento)
+        speed = speed_pct * self.config.max_speed
         
-        return action
-    
-    def act(self, action: int):
-        """
-        Ejecuta una acción.
+        self.velocity[0] = np.cos(self.angle) * speed
+        self.velocity[1] = np.sin(self.angle) * speed
         
-        Args:
-            action: Índice de la acción (0-3)
-        """
-        if action == self.ACTION_FORWARD:
-            # Moverse hacia adelante
-            self.velocity[0] = np.cos(self.angle) * self.config.speed
-            self.velocity[1] = np.sin(self.angle) * self.config.speed
+        # 3. Consumo Metabólico (Costo de existir + Costo de moverse)
+        energy_loss = self.config.metabolism + (abs(speed) * self.config.move_cost)
+        self.energy -= energy_loss
         
-        elif action == self.ACTION_LEFT:
-            # Girar a la izquierda
-            self.angle -= 0.2
-            self.velocity[0] = np.cos(self.angle) * self.config.speed * 0.5
-            self.velocity[1] = np.sin(self.angle) * self.config.speed * 0.5
-        
-        elif action == self.ACTION_RIGHT:
-            # Girar a la derecha
-            self.angle += 0.2
-            self.velocity[0] = np.cos(self.angle) * self.config.speed * 0.5
-            self.velocity[1] = np.sin(self.angle) * self.config.speed * 0.5
-        
-        elif action == self.ACTION_STOP:
-            # Quedarse quieto
-            self.velocity *= 0.5
-    
+        # 4. Muerte
+        if self.energy <= 0:
+            self.alive = False
+            self.energy = 0
+
     def update(self):
-        """Actualiza la posición del agente."""
-        # Actualizar posición
+        if not self.alive: return
+
         self.position += self.velocity
-        
-        # Mantener dentro del mundo (bounce)
-        if self.position[0] < 0:
-            self.position[0] = 0
-            self.velocity[0] *= -0.5
-            self.angle = np.pi - self.angle
-        elif self.position[0] > self.world_size[0]:
-            self.position[0] = self.world_size[0]
-            self.velocity[0] *= -0.5
-            self.angle = np.pi - self.angle
-        
-        if self.position[1] < 0:
-            self.position[1] = 0
-            self.velocity[1] *= -0.5
-            self.angle = -self.angle
-        elif self.position[1] > self.world_size[1]:
-            self.position[1] = self.world_size[1]
-            self.velocity[1] *= -0.5
-            self.angle = -self.angle
-        
-        # Normalizar ángulo
-        self.angle = self.angle % (2 * np.pi)
-        
-        # Incrementar edad
         self.age += 1
         
-        # Guardar historial (últimas 100 posiciones)
-        self.positions_history.append(tuple(self.position))
-        if len(self.positions_history) > 100:
-            self.positions_history.pop(0)
-    
-    def calculate_fitness(
-        self,
-        detected_objects: List[Tuple[float, float]],
-        alert_level: float
-    ):
-        """
-        Calcula y actualiza el fitness del agente.
-        
-        El fitness recompensa:
-        - Estar cerca de objetos detectados cuando hay alerta alta
-        - Moverse y explorar el mundo
-        - Evitar chocar con los bordes
-        
-        Args:
-            detected_objects: Objetos detectados
-            alert_level: Nivel de alerta actual
-        """
-        fitness_delta = 0.0
-        
-        # Recompensa por estar cerca de objetos detectados
-        if detected_objects and alert_level > 0.3:
-            closest_dist = min(
-                np.linalg.norm(np.array(p) - self.position)
-                for p in detected_objects
-            )
+        # Límites del mundo (Bounce suave)
+        margin = 5
+        if self.position[0] < margin: 
+            self.position[0] = margin
+            self.angle = np.pi - self.angle
+        elif self.position[0] > self.world_size[0]-margin: 
+            self.position[0] = self.world_size[0]-margin
+            self.angle = np.pi - self.angle
             
-            if closest_dist < self.config.sensor_range:
-                # Más cerca = más recompensa
-                proximity_reward = (1.0 - closest_dist / self.config.sensor_range)
-                fitness_delta += proximity_reward * alert_level * 2.0
-                self.detections_count += 1
+        if self.position[1] < margin: 
+            self.position[1] = margin
+            self.angle = -self.angle
+        elif self.position[1] > self.world_size[1]-margin: 
+            self.position[1] = self.world_size[1]-margin
+            self.angle = -self.angle
+            
+        self.angle %= (2*np.pi)
         
-        # Recompensa por moverse (exploración)
-        speed = np.linalg.norm(self.velocity)
-        fitness_delta += speed * 0.01
-        
-        # Penalización por estar muy cerca del borde
-        border_dists = [
-            self.position[0],
-            self.world_size[0] - self.position[0],
-            self.position[1],
-            self.world_size[1] - self.position[1]
-        ]
-        if min(border_dists) < 20:
-            fitness_delta -= 0.1
-        
-        # Actualizar fitness total
-        self.fitness += fitness_delta
-    
-    def reset(self):
-        """Reinicia el agente a su estado inicial."""
-        self.position = np.array([
-            np.random.uniform(50, self.world_size[0] - 50),
-            np.random.uniform(50, self.world_size[1] - 50)
-        ])
-        self.velocity = np.array([0.0, 0.0])
-        self.angle = np.random.uniform(0, 2 * np.pi)
-        self.fitness = 0.0
-        self.age = 0
-        self.alive = True
-        self.positions_history.clear()
-        self.detections_count = 0
-    
+        # Historial corto
+        self.positions_history.append(tuple(self.position))
+        if len(self.positions_history) > 50:
+            self.positions_history.pop(0)
+
+    def eat(self):
+        """Recuperar energía al comer."""
+        self.energy = min(self.energy + 30.0, self.config.max_energy)
+        self.fitness += 10.0 # Recompensa evolutiva directa
+
     def copy(self) -> 'Agent':
-        """Crea una copia del agente con el mismo cerebro."""
         new_agent = Agent(
             agent_id=self.id,
             world_size=self.world_size,
@@ -342,6 +255,27 @@ class Agent:
             brain=self.brain.copy()
         )
         return new_agent
+        
+    def calculate_fitness(self, detected_objects, alert_level):
+        """
+        Fitness v2: Supervivencia + Energía.
+        No necesitamos lógica compleja aquí, el fitness se acumula en 'eat()'
+        y simplemente por sobrevivir cada frame.
+        """
+        if self.alive:
+            self.fitness += 0.1 # Recompensa por vivir un frame más
+            
+    def reset(self):
+        """Resurrección para nueva generación."""
+        self.energy = self.config.max_energy
+        self.alive = True
+        self.age = 0
+        self.fitness = 0.0
+        self.position = np.array([
+            np.random.uniform(50, self.world_size[0]-50),
+            np.random.uniform(50, self.world_size[1]-50)
+        ])
+        self.positions_history.clear()
 
 
 # Para pruebas rápidas

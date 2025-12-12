@@ -25,6 +25,8 @@ class SimulationConfig:
     agent_count: int = 20           # Número de agentes
     steps_per_generation: int = 500 # Pasos por generación
     max_generations: int = 100      # Máximo de generaciones
+    food_count: int = 30            # Cantidad de comida
+    food_respawn_rate: float = 0.5  # Probabilidad de respawn por frame
     
 
 class Simulation:
@@ -81,7 +83,9 @@ class Simulation:
         
         # Datos actuales
         self.current_detections: List[Tuple[float, float]] = []
+        self.current_detections: List[Tuple[float, float]] = []
         self.current_alert_level: float = 0.0
+        self.food_items: List[Tuple[float, float]] = [] # Lista de comida (x, y)
         
         # Estadísticas
         self.start_time = 0.0
@@ -109,6 +113,11 @@ class Simulation:
         self.running = True
         self.start_time = time.time()
         
+        # Generar comida inicial
+        self.food_items = []
+        for _ in range(self.config.food_count):
+            self._spawn_food()
+            
         print(f"✅ Simulación iniciada - Generación {self.generation}")
     
     def stop(self):
@@ -155,11 +164,19 @@ class Simulation:
         # Mapear detecciones al espacio del ecosistema si es necesario
         mapped_detections = self._map_detections_to_world(detected_objects)
         
+        # 0. Gestionar Comida
+        if len(self.food_items) < self.config.food_count:
+            if np.random.random() < self.config.food_respawn_rate:
+                self._spawn_food()
+
         # Actualizar cada agente
-        for agent in self.agents:
-            # 1. Percibir
+        active_agents = [a for a in self.agents if a.alive]
+        
+        for agent in active_agents:
+            # 1. Percibir (Ahora incluye comida)
             agent.perceive(
                 detected_objects=mapped_detections,
+                food_items=self.food_items,
                 alert_level=alert_level,
                 other_agents=self.agents
             )
@@ -172,6 +189,16 @@ class Simulation:
             
             # 4. Actualizar posición
             agent.update()
+            
+            # 4b. Verificar colisión con comida
+            if agent.energy < agent.config.max_energy:
+                # Buscar comida cercana
+                for i, food in enumerate(self.food_items):
+                    dist = np.linalg.norm(agent.position - np.array(food))
+                    if dist < (agent.config.size + 5): # Colisión
+                        agent.eat()
+                        self.food_items.pop(i)
+                        break
             
             # 5. Calcular fitness
             agent.calculate_fitness(mapped_detections, alert_level)
@@ -216,7 +243,6 @@ class Simulation:
         print(f"\n🧬 Generación {self.generation} completada:")
         print(f"   Mejor fitness: {best_agent.fitness:.2f}")
         print(f"   Fitness promedio: {avg_fitness:.2f}")
-        print(f"   Detecciones del mejor: {best_agent.detections_count}")
         
         # Evolucionar
         self.agents = self.genetic_algorithm.evolve(self.agents)
@@ -252,6 +278,18 @@ class Simulation:
             "detections_count": len(self.current_detections),
             **ga_stats
         }
+    
+    def _spawn_food(self):
+        """Genera comida en posición aleatoria."""
+        margin = 20
+        pos = (
+            np.random.uniform(margin, self.config.world_width - margin),
+            np.random.uniform(margin, self.config.world_height - margin)
+        )
+        self.food_items.append(pos)
+        
+    def get_food_positions(self) -> List[Tuple[float, float]]:
+        return self.food_items
     
     def reset(self):
         """Reinicia la simulación desde cero."""
