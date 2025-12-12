@@ -176,15 +176,23 @@ def load_components():
         st.session_state.alert_system = AlertSystem(max_persons=20)
     
     if st.session_state.simulation is None:
-        config = SimulationConfig(
-            world_width=350,
-            world_height=250,
-            agent_count=10,  # Menos agentes para velocidad
-            steps_per_generation=100,
-            max_generations=1000
-        )
-        st.session_state.simulation = Simulation(config=config)
-        st.session_state.simulation.start()
+        init_sim()
+    else:
+        # Auto-recovery: Verificar si la simulación es vieja (falta atributo food_items)
+        if not hasattr(st.session_state.simulation, 'food_items'):
+            st.warning("⚠️ Detectada versión antigua de la simulación. Reiniciando estado...")
+            init_sim()
+
+def init_sim():
+    config = SimulationConfig(
+        world_width=350,
+        world_height=250,
+        agent_count=10,  # Menos agentes para velocidad
+        steps_per_generation=100,
+        max_generations=1000
+    )
+    st.session_state.simulation = Simulation(config=config)
+    st.session_state.simulation.start()
 
 
 def process_frame(frame):
@@ -285,18 +293,16 @@ def render_ecosystem_canvas(width=350, height=250):
 
     # --- DIBUJAR COMIDA ---
     if st.session_state.simulation:
-        for food_pos in st.session_state.simulation.food_items:
+        # Usar getattr para evitar crash con versiones viejas de la clase
+        food_items = getattr(st.session_state.simulation, 'food_items', [])
+        for food_pos in food_items:
             fx, fy = int(food_pos[0]), int(food_pos[1])
-            # Dibujar un pequeño punto verde brillante
             cv2.circle(canvas, (fx, fy), 3, (0, 255, 0), -1)
-            # Efecto de brillo
             cv2.circle(canvas, (fx, fy), 6, (0, 255, 0), 1)
     
-    # Dibujar detecciones como puntos de interés (usando posiciones mapeadas)
+    # Dibujar detecciones
     for pos in st.session_state.mapped_detections:
         x, y = pos
-        
-        # Círculo rojo pulsante para marcar personas detectadas
         cv2.circle(canvas, (x, y), 15, (0, 0, 150), 2)
         cv2.circle(canvas, (x, y), 8, (0, 0, 255), -1)
         cv2.circle(canvas, (x, y), 3, (255, 255, 255), -1)
@@ -306,39 +312,39 @@ def render_ecosystem_canvas(width=350, height=250):
         for agent in st.session_state.simulation.agents:
             ax = int(agent.position[0])
             ay = int(agent.position[1])
-            
-            # Limitar al canvas
             ax = max(5, min(ax, width-5))
             ay = max(5, min(ay, height-5))
             
-            if not agent.alive:
-                # Dibujar "X" gris para agentes muertos
+            # Verificar vida de forma segura
+            is_alive = getattr(agent, 'alive', True)
+            
+            if not is_alive:
                 size = 4
                 cv2.line(canvas, (ax-size, ay-size), (ax+size, ay+size), (100, 100, 100), 2)
                 cv2.line(canvas, (ax-size, ay+size), (ax+size, ay-size), (100, 100, 100), 2)
                 continue
 
-            # --- AGENTE VIVO ---
-            # Cuerpo del agente
-            cv2.circle(canvas, (ax, ay), 6, agent.color, -1)
+            # Cuerpo
+            color = getattr(agent, 'color', (200, 200, 200))
+            cv2.circle(canvas, (ax, ay), 6, color, -1)
             
-            # Indicador de dirección
             dx = int(np.cos(agent.angle) * 10)
             dy = int(np.sin(agent.angle) * 10)
             cv2.line(canvas, (ax, ay), (ax+dx, ay+dy), (255, 255, 255), 2)
 
-            # Barra de Energía
-            energy_pct = max(0.0, min(1.0, agent.energy / agent.config.max_energy))
-            bar_color = (0, 255, 0) if energy_pct > 0.5 else (0, 0, 255) # Verde o Rojo
+            # Barra de Energía (Safe)
+            energy = getattr(agent, 'energy', 100.0)
+            max_energy = getattr(getattr(agent, 'config', None), 'max_energy', 100.0)
+            
+            energy_pct = max(0.0, min(1.0, energy / max_energy))
+            bar_color = (0, 255, 0) if energy_pct > 0.5 else (0, 0, 255)
             
             bar_len = 12
             bar_start_x = ax - 6
             bar_end_x = int(bar_start_x + (bar_len * energy_pct))
             bar_y = ay - 10
             
-            # Fondo barra
             cv2.line(canvas, (bar_start_x, bar_y), (bar_start_x + bar_len, bar_y), (50, 50, 50), 2)
-            # Energía actual
             if bar_end_x > bar_start_x:
                 cv2.line(canvas, (bar_start_x, bar_y), (bar_end_x, bar_y), bar_color, 2)
             
@@ -492,8 +498,10 @@ def main():
             stat_frames.metric("🖼️ Frames", st.session_state.frame_count)
             stat_persons.metric("👥 Pers.", st.session_state.total_detections)
             
-            alive_count = len([a for a in st.session_state.simulation.agents if a.alive])
-            food_count = len(st.session_state.simulation.food_items)
+            # Safe Access
+            agents = st.session_state.simulation.agents
+            alive_count = len([a for a in agents if getattr(a, 'alive', True)])
+            food_count = len(getattr(st.session_state.simulation, 'food_items', []))
             
             stat_alive.metric("🟢 Vivos", alive_count)
             stat_food.metric("🍎 Comida", food_count)
@@ -538,8 +546,7 @@ def main():
         video_placeholder.info("▶️ Selecciona un video y presiona 'Iniciar' en la barra lateral")
         
         # Mostrar ecosistema estático
-        if st.session_state.simulation is None:
-            load_components()
+        load_components() # Se llama incondicionalmente para verificar versión de objetos
         
         eco_canvas = render_ecosystem_canvas()
         eco_rgb = cv2.cvtColor(eco_canvas, cv2.COLOR_BGR2RGB)
