@@ -572,7 +572,7 @@ pytest tests/ --cov=src --cov-report=html
 
 | Nombre | Rol | Contacto |
 |--------|-----|----------|
-| [Tu Nombre] | Desarrollador Principal | [email] |
+| Henry Nuñez | Desarrollador Principal | henrybrnf@gmail.com |
 
 ---
 
