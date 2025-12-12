@@ -13,8 +13,9 @@ numpy>=1.24.0               # Operaciones numéricas
 pygame>=2.5.0               # Simulación 2D del ecosistema
 matplotlib>=3.7.0           # Gráficos y visualizaciones
 
-# Interfaz de Usuario (opcional)
-# streamlit>=1.25.0         # Dashboard web (descomentar si se usa)
+# Interfaz de Usuario Web
+streamlit>=1.25.0           # Dashboard web interactivo
+plotly>=5.15.0              # Gráficos interactivos
 
 # Utilidades
 tqdm>=4.65.0                # Barras de progreso
