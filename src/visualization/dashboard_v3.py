@@ -382,16 +382,41 @@ class DashboardV3:
                 x2 = int(det.bbox[2] * w / orig_w)
                 y2 = int(det.bbox[3] * h / orig_h)
                 
-                # Usar color de alerta para las detecciones
-                cv2.rectangle(frame_rgb, (x1, y1), (x2, y2), alert_color, 3)
+                # Determinar color y estado basado en Tracking y Clase
+                is_running = getattr(det, 'is_running', False)
+                class_name = getattr(det, 'class_name', "person")
                 
-                # Etiqueta
-                label = f"PERSONA {det.confidence:.0%}"
-                cv2.putText(
-                    frame_rgb, label,
-                    (x1, y1 - 8),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, alert_color, 2
-                )
+                if class_name == "pattern":
+                    box_color = (255, 255, 0)  # Cyan (Patrón)
+                    state_label = "MOVIMIENTO"
+                    conf_val = 0.85 # Confianza base para patrones
+                elif is_running:
+                    box_color = (0, 0, 255)  # Rojo (Corriendo)
+                    state_label = "CORRIENDO"
+                    conf_val = getattr(det, 'confidence', 0.8)
+                else:
+                    box_color = alert_color
+                    state_label = "PERSONA"
+                    conf_val = getattr(det, 'confidence', 0.8)
+                
+                # Usar color determinado (Más fino: 2px)
+                cv2.rectangle(frame_rgb, (x1, y1), (x2, y2), box_color, 2)
+                
+                # Etiqueta: SOLO si es relevante (Corriendo o Patrón)
+                # El usuario pidió quitar "Persona 95%"
+                if is_running or class_name == "pattern":
+                    label = f"{state_label}" # Simplificado: Sin porcentaje
+                    
+                    # Fondo para texto
+                    (t_w, t_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
+                    cv2.rectangle(frame_rgb, (x1, y1 - t_h - 4), (x1 + t_w, y1), box_color, -1)
+                    
+                    # Texto
+                    cv2.putText(
+                        frame_rgb, label,
+                        (x1, y1 - 2),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1
+                    )
             
             # Convertir a superficie
             surf = pygame.surfarray.make_surface(frame_rgb.swapaxes(0, 1))
@@ -638,7 +663,14 @@ class DashboardV3:
         y += 20
         
         avg_conf = self.stats.get('avg_confidence', 0.0)
-        conf_color = (0, 200, 80) if avg_conf > 0.7 else (255, 100, 50)
+        
+        # Color basado en estándares académicos
+        if avg_conf > 0.8:
+            conf_color = (0, 200, 80)    # Verde (Excelente)
+        elif avg_conf > 0.6:
+            conf_color = (255, 200, 50)  # Amarillo (Aceptable)
+        else:
+            conf_color = (255, 50, 50)   # Rojo (Bajo)
         
         # Barra de confianza
         bar_w = col_w - 20

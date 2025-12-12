@@ -19,6 +19,8 @@ Example:
 
 from .yolo_detector import YOLODetector, Detection
 from .video_processor import VideoProcessor, create_test_video
+from .tracker import SimpleTracker
+from .motion_detector import MotionDetector
 
 __all__ = [
     "YOLODetector",

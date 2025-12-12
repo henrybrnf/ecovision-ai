@@ -89,12 +89,14 @@ class YOLODetector:
         self.device = device
         print(f"✅ Modelo YOLO cargado en {device}")
     
-    def detect(self, frame: np.ndarray) -> List[Detection]:
+    def detect(self, frame: np.ndarray, imgsz: int = 640, iou: float = 0.45) -> List[Detection]:
         """
         Detecta objetos en un frame.
         
         Args:
             frame: Imagen en formato numpy array (BGR o RGB)
+            imgsz: Tamaño de inferencia (más alto = detecta más pequeños, más lento)
+            iou: Umbral NMS para superposición (0.7 recomendado para multitudes)
         
         Returns:
             Lista de objetos Detection encontrados
@@ -105,6 +107,8 @@ class YOLODetector:
             conf=self.confidence_threshold,
             classes=self.classes,
             device=self.device,
+            imgsz=imgsz,
+            iou=iou,
             verbose=False  # Silenciar output
         )
         
