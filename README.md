@@ -3,8 +3,7 @@
 ## Sistema Inteligente de Vigilancia con Detección de Objetos y Agentes Evolutivos
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-En%20Desarrollo-yellow.svg)]()
+[![Status](https://img.shields.io/badge/Status-Completado-green.svg)]()
 
 ---
 
@@ -568,17 +567,22 @@ pytest tests/ --cov=src --cov-report=html
 
 ---
 
-## 👥 Autores
+## 👥 Autor y Créditos
 
-| Nombre | Rol | Contacto |
-|--------|-----|----------|
-| Henry Nuñez | Desarrollador Principal | henrybrnf@gmail.com |
+| **Desarrollador Principal** | **Henry Nuñez** |
+|-----------------------------|-----------------|
+| **Email** | [henrybrnf@gmail.com](mailto:henrybrnf@gmail.com) |
+| **GitHub** | [github.com/henrybrnf](https://github.com/henrybrnf) |
+| **LinkedIn** | [linkedin.com/in/henrybrnf](https://www.linkedin.com/in/henrybrnf/) |
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
+**Copyright (c) 2025 Henry Nuñez.**
+Todos los derechos reservados.
+
+Este proyecto es propiedad intelectual exclusiva del autor.
 
 ---
 
