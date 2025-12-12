@@ -52,11 +52,13 @@ class DashboardV3:
     
     ACCENT = (100, 130, 255)
     
-    # Colores de alerta (semáforo)
+    # Colores de alerta (semáforo estándar: 3 colores)
+    # ROJO = Emergencia (>70% alerta)
+    # AMARILLO = Precaución (30-70% alerta)  
+    # VERDE = Normal (<30% alerta)
     ALERT_COLORS = {
-        'normal': (0, 200, 80),         # Verde brillante
+        'normal': (0, 200, 80),         # Verde
         'precaución': (255, 200, 0),    # Amarillo
-        'alerta': (255, 120, 0),        # Naranja
         'emergencia': (255, 50, 50),    # Rojo
     }
     
@@ -350,7 +352,7 @@ class DashboardV3:
     
     def _draw_video_panel(self, rect):
         """Dibuja el panel de video con detecciones."""
-        content = self._draw_panel_bg(rect, "📹 DETECCIÓN DE PERSONAS (YOLOv8)")
+        content = self._draw_panel_bg(rect, "📹 DETECCIÓN (YOLOv8)")
         
         # Color de alerta actual
         alert_color = self.ALERT_COLORS.get(self.alert_category, (100, 100, 100))
@@ -400,7 +402,7 @@ class DashboardV3:
     
     def _draw_ecosystem_panel(self, rect):
         """Dibuja el panel del ecosistema."""
-        content = self._draw_panel_bg(rect, "🧬 ECOSISTEMA EVOLUTIVO (Algoritmo Genético + Redes Neuronales)")
+        content = self._draw_panel_bg(rect, "🧬 ECOSISTEMA EVOLUTIVO")
         
         # Fondo del mundo
         pygame.draw.rect(self.screen, (25, 28, 38), content, border_radius=5)
@@ -462,77 +464,107 @@ class DashboardV3:
         self.screen.blit(leg_surf, (content.x + 5, content.bottom + 5))
     
     def _draw_alert_panel(self, rect):
-        """Dibuja el panel de alerta con semáforo grande."""
-        content = self._draw_panel_bg(rect, "🚦 NIVEL DE ALERTA (Lógica Difusa)")
+        """Dibuja el panel de alerta con semáforo de 3 colores."""
+        content = self._draw_panel_bg(rect, "🚦 ALERTA")
         
-        # Color actual
+        # Color actual según categoría
         alert_color = self.ALERT_COLORS.get(self.alert_category, (100, 100, 100))
         
-        # === SEMÁFORO GRANDE ===
-        semaphore_x = content.centerx
-        semaphore_y = content.y + 20
+        # === SEMÁFORO ESTÁNDAR (3 LUCES) ===
+        sem_x = content.x + 50
+        sem_y = content.y + 10
         
         # Fondo del semáforo
-        sem_bg = pygame.Rect(semaphore_x - 40, semaphore_y, 80, 160)
-        pygame.draw.rect(self.screen, (20, 20, 25), sem_bg, border_radius=10)
-        pygame.draw.rect(self.screen, (50, 50, 60), sem_bg, width=2, border_radius=10)
+        sem_bg = pygame.Rect(sem_x - 25, sem_y, 50, 130)
+        pygame.draw.rect(self.screen, (25, 25, 30), sem_bg, border_radius=8)
+        pygame.draw.rect(self.screen, (60, 60, 70), sem_bg, width=2, border_radius=8)
         
-        # Luces del semáforo
-        lights = [
-            ('emergencia', semaphore_y + 25),
-            ('alerta', semaphore_y + 70),
-            ('precaución', semaphore_y + 115),
+        # Las 3 luces: ROJO (arriba), AMARILLO (medio), VERDE (abajo)
+        luz_rojo_y = sem_y + 25
+        luz_amarillo_y = sem_y + 65
+        luz_verde_y = sem_y + 105
+        
+        # Determinar qué luz está encendida
+        luz_rojo_on = self.alert_category == 'emergencia'
+        luz_amarillo_on = self.alert_category == 'precaución'
+        luz_verde_on = self.alert_category == 'normal'
+        
+        # Dibujar luz ROJA
+        rojo = self.ALERT_COLORS['emergencia'] if luz_rojo_on else (60, 20, 20)
+        pygame.draw.circle(self.screen, rojo, (sem_x, luz_rojo_y), 18)
+        pygame.draw.circle(self.screen, (80, 80, 90), (sem_x, luz_rojo_y), 18, 2)
+        
+        # Dibujar luz AMARILLA
+        amarillo = self.ALERT_COLORS['precaución'] if luz_amarillo_on else (60, 50, 10)
+        pygame.draw.circle(self.screen, amarillo, (sem_x, luz_amarillo_y), 18)
+        pygame.draw.circle(self.screen, (80, 80, 90), (sem_x, luz_amarillo_y), 18, 2)
+        
+        # Dibujar luz VERDE
+        verde = self.ALERT_COLORS['normal'] if luz_verde_on else (10, 50, 20)
+        pygame.draw.circle(self.screen, verde, (sem_x, luz_verde_y), 18)
+        pygame.draw.circle(self.screen, (80, 80, 90), (sem_x, luz_verde_y), 18, 2)
+        
+        # === INFORMACIÓN A LA DERECHA DEL SEMÁFORO ===
+        info_x = sem_x + 50
+        info_y = sem_y + 5
+        
+        # Porcentaje grande
+        pct_text = f"{self.alert_level:.0%}"
+        pct_surf = self.fonts['big'].render(pct_text, True, alert_color)
+        self.screen.blit(pct_surf, (info_x, info_y))
+        
+        # Categoría
+        cat_names = {'normal': 'NORMAL', 'precaución': 'PRECAUCIÓN', 'emergencia': 'EMERGENCIA'}
+        cat_text = cat_names.get(self.alert_category, 'NORMAL')
+        cat_surf = self.fonts['normal'].render(cat_text, True, alert_color)
+        self.screen.blit(cat_surf, (info_x, info_y + 35))
+        
+        # Descripción
+        descriptions = {
+            'normal': 'Situación tranquila',
+            'precaución': 'Vigilar situación',
+            'emergencia': '¡Acción requerida!'
+        }
+        desc = descriptions.get(self.alert_category, '')
+        desc_surf = self.fonts['small'].render(desc, True, self.TEXT_LIGHT)
+        self.screen.blit(desc_surf, (info_x, info_y + 55))
+        
+        # === LEYENDA DE COLORES ===
+        ley_y = content.y + 150
+        
+        leyenda_title = self.fonts['small'].render("Significado:", True, self.TEXT_DIM)
+        self.screen.blit(leyenda_title, (content.x + 10, ley_y))
+        ley_y += 18
+        
+        leyenda = [
+            ("🔴", "ROJO", ">70%", "Emergencia"),
+            ("🟡", "AMAR", "30-70%", "Precaución"),
+            ("🟢", "VERDE", "<30%", "Normal"),
         ]
         
-        for level, ly in lights:
-            color = self.ALERT_COLORS[level]
-            # Luz apagada o encendida
-            if self.alert_category == level or (
-                self.alert_category == 'normal' and level == 'precaución'
-            ):
-                # Encendida con glow
-                pygame.draw.circle(self.screen, color, (semaphore_x, ly), 22)
-            else:
-                # Apagada
-                dim_color = tuple(c // 4 for c in color)
-                pygame.draw.circle(self.screen, dim_color, (semaphore_x, ly), 22)
-            
-            # Borde
-            pygame.draw.circle(self.screen, (80, 80, 90), (semaphore_x, ly), 22, 2)
+        for emoji, color_name, rango, estado in leyenda:
+            # Emoji como indicador
+            line = f"{emoji} {rango} = {estado}"
+            line_surf = self.fonts['small'].render(line, True, self.TEXT_LIGHT)
+            self.screen.blit(line_surf, (content.x + 10, ley_y))
+            ley_y += 16
         
-        # Si es normal, luz verde separada
-        if self.alert_category == 'normal':
-            green_y = semaphore_y + 140
-            pygame.draw.circle(self.screen, self.ALERT_COLORS['normal'], (semaphore_x, green_y), 18)
+        # === CÓMO SE CALCULA ===
+        calc_y = ley_y + 10
         
-        # === PORCENTAJE GRANDE ===
-        pct_y = semaphore_y + 175
-        pct_text = f"{self.alert_level:.0%}"
-        pct_surf = self.fonts['huge'].render(pct_text, True, alert_color)
-        pct_rect = pct_surf.get_rect(centerx=content.centerx, y=pct_y)
-        self.screen.blit(pct_surf, pct_rect)
+        calc_title = self.fonts['small'].render("Cálculo:", True, self.TEXT_DIM)
+        self.screen.blit(calc_title, (content.x + 10, calc_y))
+        calc_y += 18
         
-        # === CATEGORÍA ===
-        cat_y = pct_y + 55
-        cat_surf = self.fonts['big'].render(
-            self.alert_category.upper(),
-            True, alert_color
-        )
-        cat_rect = cat_surf.get_rect(centerx=content.centerx, y=cat_y)
-        self.screen.blit(cat_surf, cat_rect)
+        calc_lines = [
+            f"Personas: {len(self.detections)}",
+            f"Densidad: {len(self.detections)/12:.0%}",
+        ]
         
-        # === EXPLICACIÓN ===
-        exp_y = cat_y + 40
-        explanations = {
-            'normal': "Situación tranquila",
-            'precaución': "Aumentar vigilancia",
-            'alerta': "Posible problema",
-            'emergencia': "¡Acción inmediata!"
-        }
-        exp_text = explanations.get(self.alert_category, "")
-        exp_surf = self.fonts['normal'].render(exp_text, True, self.TEXT_LIGHT)
-        exp_rect = exp_surf.get_rect(centerx=content.centerx, y=exp_y)
-        self.screen.blit(exp_surf, exp_rect)
+        for line in calc_lines:
+            line_surf = self.fonts['small'].render(line, True, self.TEXT_LIGHT)
+            self.screen.blit(line_surf, (content.x + 10, calc_y))
+            calc_y += 15
     
     def _draw_stats_panel(self, rect):
         """Dibuja el panel de estadísticas y controles."""
