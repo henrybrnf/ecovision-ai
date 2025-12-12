@@ -1,0 +1,61 @@
+# EcoVision AI - Configuración
+# ============================
+
+# Configuración del Detector YOLO
+detector:
+  model: "yolov8n.pt"           # Modelo a usar (n=nano, s=small, m=medium)
+  confidence_threshold: 0.5      # Umbral de confianza (0.0 - 1.0)
+  classes: [0]                   # Clases a detectar (0 = personas)
+  device: "cpu"                  # "cpu" o "cuda" (GPU)
+
+# Configuración del Sistema Difuso
+fuzzy:
+  # Rango de personas
+  person_count_max: 20
+  
+  # Rango de velocidad de movimiento (0.0 - 1.0)
+  movement_speed_max: 1.0
+  
+  # Método de defuzzificación
+  defuzzification_method: "centroid"  # "centroid", "bisector", "mom", "som", "lom"
+
+# Configuración del Ecosistema Evolutivo
+ecosystem:
+  # Tamaño del mundo virtual
+  world_width: 800
+  world_height: 600
+  
+  # Población de agentes
+  agent_count: 20
+  
+  # Parámetros del Algoritmo Genético
+  mutation_rate: 0.1             # Probabilidad de mutación (0.0 - 1.0)
+  crossover_rate: 0.7            # Probabilidad de cruzamiento (0.0 - 1.0)
+  elitism: 2                     # Número de mejores individuos preservados
+  tournament_size: 3             # Tamaño del torneo para selección
+  
+  # Generaciones
+  max_generations: 100           # Máximo de generaciones
+  steps_per_generation: 500      # Pasos de simulación por generación
+
+# Configuración de la Red Neuronal del Agente
+agent_brain:
+  input_size: 8                  # Entradas (sensores del agente)
+  hidden_size: 16                # Neuronas en capa oculta
+  output_size: 4                 # Salidas (acciones)
+  activation: "tanh"             # Función de activación
+
+# Configuración de Visualización
+visualization:
+  fps: 30                        # Frames por segundo
+  show_detections: true          # Mostrar detecciones YOLO
+  show_agents: true              # Mostrar agentes del ecosistema
+  show_stats: true               # Mostrar estadísticas
+  window_width: 1200             # Ancho de ventana
+  window_height: 800             # Alto de ventana
+
+# Configuración de Video
+video:
+  default_source: "data/videos/sample.mp4"
+  resize_width: 640              # Redimensionar para procesamiento
+  resize_height: 480

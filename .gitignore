@@ -1,0 +1,57 @@
+# Entorno virtual
+.venv/
+venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Modelo YOLO (se descarga automáticamente)
+*.pt
+
+# Logs y outputs
+*.log
+outputs/logs/
+outputs/screenshots/
+outputs/evolution_data/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Videos de prueba (muy pesados para Git)
+data/videos/*.mp4
+data/videos/*.avi
+data/videos/*.mov
+
+# Archivos temporales
+*.tmp
+*.temp

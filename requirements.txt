@@ -1,0 +1,21 @@
+# EcoVision AI - Dependencias
+# ============================
+
+# Detección de Objetos (CNN - YOLO)
+ultralytics>=8.0.0          # YOLOv8 para detección en tiempo real
+opencv-python>=4.8.0        # Procesamiento de video e imágenes
+
+# Lógica Difusa
+scikit-fuzzy>=0.4.2         # Motor de inferencia difusa
+numpy>=1.24.0               # Operaciones numéricas
+
+# Simulación y Visualización
+pygame>=2.5.0               # Simulación 2D del ecosistema
+matplotlib>=3.7.0           # Gráficos y visualizaciones
+
+# Interfaz de Usuario (opcional)
+# streamlit>=1.25.0         # Dashboard web (descomentar si se usa)
+
+# Utilidades
+tqdm>=4.65.0                # Barras de progreso
+pyyaml>=6.0.0               # Configuración YAML
