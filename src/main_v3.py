@@ -321,6 +321,7 @@ class EcoVisionV3:
                     frame=last_frame,
                     detections=current_detections, # Pasamos objetos rastreados!
                     agents=self.simulation.agents,
+                    food=self.simulation.get_food_positions(), # Visualizar comida
                     alert_level=last_alert_level,
                     alert_category=last_alert_category,
                     stats=stats

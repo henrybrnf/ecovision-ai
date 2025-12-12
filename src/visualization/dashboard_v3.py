@@ -83,6 +83,11 @@ class DashboardV3:
         self.agents = []
         self.alert_level = 0.0
         self.alert_category = "normal"
+        self.detections = []
+        self.agents = []
+        self.food = [] # Lista de comida
+        self.alert_level = 0.0
+        self.alert_category = "normal"
         self.stats = {}
         
         # Historial para gráficos
@@ -217,6 +222,7 @@ class DashboardV3:
         frame=None,
         detections=None,
         agents=None,
+        food=None, # Argumento de comida
         alert_level: float = 0.0,
         alert_category: str = "normal",
         stats: dict = None
@@ -228,6 +234,7 @@ class DashboardV3:
         self.frame = frame
         self.detections = detections or []
         self.agents = agents or []
+        self.food = food or []
         self.alert_level = alert_level
         self.alert_category = alert_category
         self.stats = stats or {}
@@ -467,6 +474,21 @@ class DashboardV3:
                 pygame.draw.circle(self.screen, alert_color, (x, y), 10, 2)
                 pygame.draw.circle(self.screen, (255, 255, 255), (x, y), 4)
         
+        # Dibujar Comida (Puntos verdes)
+        for food_pos in self.food:
+            fx = content.x + int(food_pos[0] * content.width / 768) # Ajuste a ojo, debería ser world_size dinámico
+            fy = content.y + int(food_pos[1] * content.height / 432)
+            
+            # De hecho, usaremos los factores de escala de los agentes para ser precisos
+            # Asumimos que todos los agentes viven en el mismo mundo
+            if self.agents:
+                scale_x = content.width / self.agents[0].world_size[0]
+                scale_y = content.height / self.agents[0].world_size[1]
+                fx = content.x + int(food_pos[0] * scale_x)
+                fy = content.y + int(food_pos[1] * scale_y)
+            
+            pygame.draw.circle(self.screen, (0, 255, 100), (fx, fy), 3)
+
         # Dibujar agentes
         for agent in self.agents:
             scale_x = content.width / agent.world_size[0]
@@ -484,10 +506,28 @@ class DashboardV3:
                 end_y = ay + int(np.sin(angle + da) * 20)
                 pygame.draw.line(self.screen, (60, 65, 85), (ax, ay), (end_x, end_y))
             
+            # Diferenciar vivos/muertos
+            if not agent.alive:
+                # Dibujar X gris
+                color = (60, 60, 60)
+                pygame.draw.line(self.screen, color, (ax-4, ay-4), (ax+4, ay+4), 2)
+                pygame.draw.line(self.screen, color, (ax-4, ay+4), (ax+4, ay-4), 2)
+                continue # No dibujar cuerpo ni dirección
+
             # Cuerpo
             pygame.draw.circle(self.screen, agent.color, (ax, ay), 7)
             pygame.draw.circle(self.screen, self.TEXT_WHITE, (ax, ay), 7, 2)
             
+            # Barra de Energía
+            enery_pct = max(0, agent.energy / agent.config.max_energy)
+            bar_w = 14
+            bar_x = ax - 7
+            bar_y = ay - 12
+            # Fondo rojo
+            pygame.draw.rect(self.screen, (200, 50, 50), (bar_x, bar_y, bar_w, 3))
+            # Barra verde
+            pygame.draw.rect(self.screen, (50, 255, 50), (bar_x, bar_y, int(bar_w * enery_pct), 3))
+
             # Dirección
             dir_x = ax + int(np.cos(angle) * 12)
             dir_y = ay + int(np.sin(angle) * 12)
@@ -715,6 +755,9 @@ class DashboardV3:
         stats_data = [
             ("Generación:", self.stats.get('generation', 0)),
             ("Población:", len(self.agents)),
+            ("Población:", len(self.agents)),
+            ("Vivos:", len([a for a in self.agents if a.alive])),
+            ("Comida:", len(self.food)),
             ("Mejor Fitness:", f"{self.stats.get('best_fitness', 0):.2f}"),
             ("Prom. Fitness:", f"{self.stats.get('avg_fitness', 0):.2f}"),
         ]

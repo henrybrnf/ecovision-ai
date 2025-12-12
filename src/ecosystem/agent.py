@@ -112,6 +112,11 @@ class Agent:
         color[(base_color + 1) % 3] = np.random.randint(100, 200)
         return tuple(color)
 
+    @property
+    def color(self) -> Tuple[int, int, int]:
+        """Color del agente para visualización."""
+        return self._color
+
     def perceive(
         self,
         detected_objects: List[Tuple[float, float]], # YOLO Obstacles
